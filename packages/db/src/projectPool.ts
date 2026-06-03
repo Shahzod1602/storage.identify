@@ -1,4 +1,5 @@
 import postgres from "postgres";
+import { getConfig } from "@storagedb/config";
 import type { Project } from "@storagedb/types";
 import type { Sql } from "./client.js";
 import { projectAuthUrl } from "./roles.js";
@@ -18,6 +19,8 @@ export function getProjectPool(project: Project): Sql {
       max: 5,
       idle_timeout: 30,
       onnotice: () => {},
+      // Og'ir/osilib qolgan so'rovlarni avtomatik to'xtatadi (DoS himoyasi).
+      connection: { statement_timeout: getConfig().STATEMENT_TIMEOUT_MS },
     });
     pools.set(project.ref, pool);
   }

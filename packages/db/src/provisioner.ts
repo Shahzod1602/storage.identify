@@ -5,6 +5,7 @@ import { generateProjectKeys } from "@storagedb/jwt";
 import type { Project, ProjectKeys } from "@storagedb/types";
 import { platform, connect } from "./client.js";
 import { authenticatorRole, authenticatorPassword } from "./roles.js";
+import { encryptSecret } from "./crypto.js";
 
 // URL-xavfsiz, kichik harf + raqam (db/role nomlari uchun ham xavfsiz).
 const makeRef = customAlphabet("abcdefghijklmnopqrstuvwxyz0123456789", 16);
@@ -78,13 +79,12 @@ export async function createProject(
       organization_id: string;
       name: string;
       db_name: string;
-      jwt_secret: string;
       created_at: string;
     }[]
   >`
     insert into projects (ref, organization_id, name, db_name, jwt_secret, status)
-    values (${ref}, ${organizationId}, ${input.name}, ${dbName}, ${jwtSecret}, 'provisioning')
-    returning id, ref, organization_id, name, db_name, jwt_secret, created_at
+    values (${ref}, ${organizationId}, ${input.name}, ${dbName}, ${encryptSecret(jwtSecret)}, 'provisioning')
+    returning id, ref, organization_id, name, db_name, created_at
   `;
 
   if (input.ownerEmail) {
@@ -118,7 +118,7 @@ export async function createProject(
     organizationId: row!.organization_id,
     name: row!.name,
     dbName: row!.db_name,
-    jwtSecret: row!.jwt_secret,
+    jwtSecret: jwtSecret, // xotirada plaintext; DB'da shifrlangan
     createdAt: row!.created_at,
   };
 

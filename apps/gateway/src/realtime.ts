@@ -39,16 +39,18 @@ export async function registerRealtime(app: FastifyInstance): Promise<void> {
         socket.close();
         return;
       }
+      // apikey'ni tekshirib, role + claims'ni saqlaymiz (RLS uchun).
+      let claims;
       try {
         if (!apikey) throw new Error("apikey kerak");
-        await verifyJwt(project.jwtSecret, apikey);
+        claims = await verifyJwt(project.jwtSecret, apikey);
       } catch {
         socket.send(JSON.stringify({ type: "error", message: "apikey yaroqsiz" }));
         socket.close();
         return;
       }
 
-      socket.send(JSON.stringify({ type: "ready", ref }));
+      socket.send(JSON.stringify({ type: "ready", ref, role: claims.role }));
 
       socket.on("message", (raw: unknown) => {
         let msg: ClientMessage;
@@ -59,9 +61,13 @@ export async function registerRealtime(app: FastifyInstance): Promise<void> {
           return;
         }
         if (msg.type === "subscribe" && msg.table) {
-          void hub.subscribe(project, msg.table, socket).then(() =>
-            socket.send(JSON.stringify({ type: "subscribed", table: msg.table })),
-          );
+          void hub
+            .subscribe(project, msg.table, socket, claims.role, claims)
+            .then(() =>
+              socket.send(
+                JSON.stringify({ type: "subscribed", table: msg.table }),
+              ),
+            );
         } else if (msg.type === "unsubscribe" && msg.table) {
           hub.unsubscribe(ref, msg.table, socket);
           socket.send(JSON.stringify({ type: "unsubscribed", table: msg.table }));

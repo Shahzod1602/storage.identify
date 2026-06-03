@@ -27,15 +27,26 @@ const app = Fastify({
   bodyLimit: 52_428_800, // 50 MB (fayl yuklash uchun)
 });
 
-await app.register(cors, { origin: true });
+// CORS: "*" => hamma origin (dev); aks holda env'dagi domenlar ro'yxati.
+const corsOrigin =
+  cfg.GATEWAY_CORS_ORIGINS === "*"
+    ? true
+    : cfg.GATEWAY_CORS_ORIGINS.split(",").map((o) => o.trim());
+await app.register(cors, { origin: corsOrigin });
 
 // Xavfsizlik headerlari (API uchun CSP o'chirilgan).
 await app.register(helmet, { contentSecurityPolicy: false });
 
-// Rate limiting — IP bo'yicha (DoS/abuse'dan himoya).
+// Rate limiting — har (IP + apikey) bo'yicha alohida. Shunday qilib bir loyiha
+// abuse'i boshqa loyihalarga ta'sir qilmaydi.
 await app.register(rateLimit, {
   max: 300,
   timeWindow: "1 minute",
+  keyGenerator: (req) => {
+    const apikey = req.headers["apikey"];
+    const key = Array.isArray(apikey) ? apikey[0] : apikey;
+    return `${req.ip}:${key ?? "anon"}`;
+  },
 });
 
 // Binary (fayl) yuklash uchun: JSON'dan boshqa hamma content-type'ni Buffer qiladi.

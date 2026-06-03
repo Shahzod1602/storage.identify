@@ -1,0 +1,12 @@
+# Caddy reverse-proxy — avtomatik HTTPS (Let's Encrypt).
+# Domenlarni docker-compose.prod.yml env'da o'rnating:
+#   API_DOMAIN=api.misol.uz  STUDIO_DOMAIN=studio.misol.uz
+# DNS A-yozuvlari serverga ishora qilishi kerak.
+
+{$API_DOMAIN} {
+	reverse_proxy gateway:8000
+}
+
+{$STUDIO_DOMAIN} {
+	reverse_proxy studio:3001
+}

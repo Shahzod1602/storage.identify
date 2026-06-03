@@ -111,16 +111,35 @@ curl -X POST "http://localhost:8000/v1/<REF>/storage/v1/object/rasmlar/a.png" \
 #        -> {"type":"subscribe","table":"todos"}
 ```
 
-## Production (VPS + Docker)
+## Production (VPS + Docker + HTTPS)
 
 ```bash
-# .env'da PLATFORM_SECRET, PLATFORM_ADMIN_TOKEN, POSTGRES_PASSWORD ni o'zgartiring!
+# 1. Kuchli secretlar generatsiya qiling
+./scripts/gen-secrets.sh >> .env
+# 2. .env'da domenlarni qo'shing: API_DOMAIN, STUDIO_DOMAIN, GATEWAY_CORS_ORIGINS
+# 3. Ishga tushiring (Caddy avtomatik Let's Encrypt HTTPS beradi)
 docker compose -f docker/docker-compose.prod.yml up -d --build
-# gateway :8000, studio :3001, postgres (wal_level=logical)
+# caddy :443 (HTTPS) → gateway/studio; postgres ichki tarmoqda
 ```
 
-Xavfsizlik: helmet headerlari, IP bo'yicha rate-limit (300/min), parollar scrypt bilan
-hashlanadi, har loyiha alohida DB + authenticator rolda izolyatsiya qilinadi.
+## Xavfsizlik (Tier 0 — production-ready)
+
+- **HTTPS** — Caddy reverse-proxy, avtomatik Let's Encrypt sertifikat (`docker/Caddyfile`)
+- **Secret guard** — `NODE_ENV=production`da default/zaif secretlar **rad etiladi**
+- **`jwt_secret` shifrlangan** — control-plane DB'da AES-256-GCM (`enc:` prefiks); DB o'g'irlansa ham ochilmaydi
+- **Realtime RLS** — har obunachi faqat o'zining RLS siyosati ko'rsatadigan qatorlarni oladi (ma'lumot sizmaydi)
+- **SQL timeout** — `STATEMENT_TIMEOUT_MS` (default 15s) osilib qolgan so'rovlarni to'xtatadi
+- **Per-key rate-limit** — har (IP + apikey) alohida; CORS `GATEWAY_CORS_ORIGINS` bilan cheklanadi
+- helmet headerlari, scrypt parol hashing, har loyiha alohida DB + authenticator izolyatsiya
+
+## Backup / Restore
+
+```bash
+PG_BIN=/opt/homebrew/opt/postgresql@17/bin/ ./scripts/backup.sh   # platform + proj_* + rollar + storage
+./scripts/restore.sh ./backups/<timestamp>                        # tiklash
+# Avtomatik: crontab -e → 0 3 * * * cd /path && ./scripts/backup.sh
+# Offsite:  OFFSITE=user@host:/backups ./scripts/backup.sh
+```
 
 ## Skriptlar
 

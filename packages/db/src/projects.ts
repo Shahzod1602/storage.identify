@@ -1,5 +1,6 @@
 import type { Project } from "@storagedb/types";
 import { platform } from "./client.js";
+import { decryptSecret } from "./crypto.js";
 
 interface ProjectRow {
   id: string;
@@ -18,7 +19,7 @@ function toProject(r: ProjectRow): Project {
     organizationId: r.organization_id,
     name: r.name,
     dbName: r.db_name,
-    jwtSecret: r.jwt_secret,
+    jwtSecret: decryptSecret(r.jwt_secret), // DB'da shifrlangan -> xotirada plaintext
     createdAt: r.created_at,
   };
 }

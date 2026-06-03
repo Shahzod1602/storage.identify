@@ -1,10 +1,28 @@
-# Production stack: Postgres + Gateway + Studio.
+# Production stack: Caddy (HTTPS) + Postgres + Gateway + Studio.
 # Ishga tushirish:
+#   ./scripts/gen-secrets.sh >> .env   # secretlarni generatsiya qiling
 #   docker compose -f docker/docker-compose.prod.yml up -d --build
 #
-# Muhim: .env ichidagi PLATFORM_SECRET, PLATFORM_ADMIN_TOKEN, POSTGRES_PASSWORD
-# ni albatta uzun tasodifiy qiymatlarga o'zgartiring!
+# Muhim: .env'da NODE_ENV=production, PLATFORM_SECRET, PLATFORM_ADMIN_TOKEN,
+# POSTGRES_PASSWORD, API_DOMAIN, STUDIO_DOMAIN, GATEWAY_CORS_ORIGINS ni o'rnating!
 services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - gateway
+      - studio
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?API_DOMAIN kerak (masalan api.misol.uz)}
+      STUDIO_DOMAIN: ${STUDIO_DOMAIN:?STUDIO_DOMAIN kerak}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
   postgres:
     image: postgres:17
     restart: unless-stopped
@@ -30,13 +48,16 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      NODE_ENV: production
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/platform
       PROJECTS_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/postgres
       PLATFORM_SECRET: ${PLATFORM_SECRET:?PLATFORM_SECRET kerak}
       PLATFORM_ADMIN_TOKEN: ${PLATFORM_ADMIN_TOKEN:?PLATFORM_ADMIN_TOKEN kerak}
+      GATEWAY_CORS_ORIGINS: ${GATEWAY_CORS_ORIGINS:?GATEWAY_CORS_ORIGINS kerak (domenlaringiz)}
       STORAGE_DIR: /data/storage
-    ports:
-      - "8000:8000"
+    # Port faqat ichki tarmoqda — tashqariga Caddy chiqaradi (HTTPS).
+    expose:
+      - "8000"
     volumes:
       - storage-data:/data/storage
 
@@ -48,11 +69,13 @@ services:
     depends_on:
       - gateway
     environment:
-      NEXT_PUBLIC_GATEWAY_URL: ${PUBLIC_GATEWAY_URL:-http://localhost:8000}
+      NEXT_PUBLIC_GATEWAY_URL: https://${API_DOMAIN}
       NEXT_PUBLIC_ADMIN_TOKEN: ${PLATFORM_ADMIN_TOKEN}
-    ports:
-      - "3001:3001"
+    expose:
+      - "3001"
 
 volumes:
   postgres-data:
   storage-data:
+  caddy-data:
+  caddy-config:
