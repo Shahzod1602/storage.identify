@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Plus, Search, Database, Copy, Check } from "lucide-react";
 import {
   listProjects,
   createProject,
@@ -11,7 +12,9 @@ import {
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [query, setQuery] = useState("");
   const [name, setName] = useState("");
+  const [creating, setCreating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<ProjectKeys | null>(null);
@@ -34,85 +37,161 @@ export default function ProjectsPage() {
   async function onCreate() {
     if (!name.trim()) return;
     try {
-      const keys = await createProject(name.trim());
-      setCreated(keys);
+      setCreated(await createProject(name.trim()));
       setName("");
+      setCreating(false);
       await reload();
     } catch (e) {
       setError((e as Error).message);
     }
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-end justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Loyihalar</h1>
-          <p className="text-sm text-neutral-500">
-            Har bir loyiha alohida Postgres database'iga ega.
-          </p>
-        </div>
-      </div>
+  const filtered = projects.filter((p) =>
+    p.name.toLowerCase().includes(query.toLowerCase()),
+  );
 
-      <div className="card flex gap-3">
-        <input
-          className="input"
-          placeholder="Yangi loyiha nomi"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && onCreate()}
-        />
-        <button className="btn whitespace-nowrap" onClick={onCreate}>
-          + Loyiha yaratish
+  return (
+    <div className="min-h-screen">
+      <header className="border-b border-border bg-bg">
+        <div className="mx-auto flex max-w-6xl items-center gap-3 px-6 py-3">
+          <span className="grid h-7 w-7 place-items-center rounded-md bg-brand text-sm font-bold text-black">
+            s
+          </span>
+          <span className="font-medium">storagedb</span>
+          <span className="text-faint">/</span>
+          <span className="text-muted">Tashkilot</span>
+        </div>
+      </header>
+
+      <div className="mx-auto max-w-6xl px-6 py-10">
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-xl font-medium">Loyihalar</h1>
+          <button className="btn" onClick={() => setCreating((v) => !v)}>
+            <Plus size={15} /> Yangi loyiha
+          </button>
+        </div>
+
+        <div className="relative mb-6 max-w-xs">
+          <Search
+            size={15}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-faint"
+          />
+          <input
+            className="input pl-9"
+            placeholder="Loyiha qidirish..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+
+        {creating && (
+          <div className="card mb-6 flex items-center gap-3 p-4">
+            <input
+              autoFocus
+              className="input max-w-sm"
+              placeholder="Loyiha nomi"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && onCreate()}
+            />
+            <button className="btn" onClick={onCreate}>
+              Yaratish
+            </button>
+            <button className="btn-ghost" onClick={() => setCreating(false)}>
+              Bekor
+            </button>
+          </div>
+        )}
+
+        {created && <NewKeys keys={created} onClose={() => setCreated(null)} />}
+
+        {error && (
+          <div className="card mb-6 border-red-500/30 bg-red-500/5 p-4 text-sm text-red-400">
+            {error}
+          </div>
+        )}
+
+        {loading ? (
+          <p className="text-sm text-faint">Yuklanmoqda...</p>
+        ) : filtered.length === 0 ? (
+          <div className="grid place-items-center rounded-lg border border-dashed border-border py-20 text-center">
+            <Database size={28} className="mb-3 text-faint" />
+            <p className="text-sm text-muted">Loyiha topilmadi.</p>
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filtered.map((p) => (
+              <Link
+                key={p.ref}
+                href={`/project/${p.ref}`}
+                className="card group p-4 transition hover:border-border-strong hover:bg-hover"
+              >
+                <div className="flex items-start justify-between">
+                  <span className="grid h-9 w-9 place-items-center rounded-md border border-border bg-bg text-brand">
+                    <Database size={16} />
+                  </span>
+                  <span className="badge">
+                    <span className="h-1.5 w-1.5 rounded-full bg-brand" /> Active
+                  </span>
+                </div>
+                <div className="mt-3 font-medium group-hover:text-brand">
+                  {p.name}
+                </div>
+                <div className="mt-1 font-mono text-xs text-faint">{p.ref}</div>
+                <div className="mt-3 border-t border-border pt-2 text-xs text-faint">
+                  Postgres · {p.db_name}
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function NewKeys({
+  keys,
+  onClose,
+}: {
+  keys: ProjectKeys;
+  onClose: () => void;
+}) {
+  return (
+    <div className="card mb-6 border-brand/30 bg-brand/[0.04] p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-sm font-medium text-brand">
+          "{keys.name}" yaratildi — kalitlarni saqlang
+        </p>
+        <button className="btn-ghost" onClick={onClose}>
+          ✕
         </button>
       </div>
+      <CopyRow label="ref" value={keys.ref} />
+      <CopyRow label="anon key" value={keys.anon_key} />
+      <CopyRow label="service key" value={keys.service_key} />
+    </div>
+  );
+}
 
-      {created && (
-        <div className="card border-brand/40 bg-brand/5">
-          <p className="mb-2 font-medium text-brand">
-            "{created.name}" yaratildi! Kalitlarni saqlang:
-          </p>
-          <div className="space-y-1 font-mono text-xs">
-            <div>
-              <span className="text-neutral-500">ref:</span> {created.ref}
-            </div>
-            <div className="truncate">
-              <span className="text-neutral-500">anon_key:</span>{" "}
-              {created.anon_key}
-            </div>
-            <div className="truncate">
-              <span className="text-neutral-500">service_key:</span>{" "}
-              {created.service_key}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {error && (
-        <div className="card border-red-500/40 text-red-400">{error}</div>
-      )}
-
-      {loading ? (
-        <p className="text-neutral-500">Yuklanmoqda...</p>
-      ) : projects.length === 0 ? (
-        <p className="text-neutral-500">Hali loyiha yo'q.</p>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {projects.map((p) => (
-            <Link
-              key={p.ref}
-              href={`/project/${p.ref}`}
-              className="card transition hover:border-brand"
-            >
-              <div className="font-medium">{p.name}</div>
-              <div className="mt-1 font-mono text-xs text-neutral-500">
-                {p.ref}
-              </div>
-              <div className="mt-3 text-xs text-neutral-600">{p.db_name}</div>
-            </Link>
-          ))}
-        </div>
-      )}
+function CopyRow({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="flex items-center gap-3 border-b border-border/50 py-2 last:border-0">
+      <span className="w-24 shrink-0 text-xs text-faint">{label}</span>
+      <code className="flex-1 truncate font-mono text-xs text-muted">
+        {value}
+      </code>
+      <button
+        className="btn-ghost btn-xs"
+        onClick={() => {
+          navigator.clipboard.writeText(value);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1200);
+        }}
+      >
+        {copied ? <Check size={13} className="text-brand" /> : <Copy size={13} />}
+      </button>
     </div>
   );
 }

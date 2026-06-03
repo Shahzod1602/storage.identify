@@ -1,26 +1,35 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { UserPlus, RefreshCw, Mail, X, Check } from "lucide-react";
 import { useProject } from "@/components/project-context";
-import { metaQuery } from "@/lib/api";
-import { RowsTable } from "@/components/rows-table";
+import { metaQuery, GATEWAY } from "@/lib/api";
+
+interface AuthUser {
+  id: string;
+  email: string;
+  email_confirmed_at: string | null;
+  created_at: string;
+}
 
 export default function AuthPage() {
   const { ref, keys } = useProject();
-  const [rows, setRows] = useState<Record<string, unknown>[]>([]);
+  const [users, setUsers] = useState<AuthUser[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   async function reload() {
     if (!keys) return;
     try {
-      setRows(
-        await metaQuery(
-          ref,
-          keys.service_key,
-          `select id, email, email_confirmed_at, created_at
-           from auth.users order by created_at desc limit 100`,
-        ),
+      const r = await metaQuery(
+        ref,
+        keys.service_key,
+        `select id, email, email_confirmed_at, created_at
+         from auth.users order by created_at desc limit 200`,
       );
+      setUsers(r as unknown as AuthUser[]);
       setError(null);
     } catch (e) {
       setError((e as Error).message);
@@ -31,20 +40,126 @@ export default function AuthPage() {
     void reload();
   }, [ref, keys]);
 
+  async function addUser() {
+    if (!keys || !email || !password) return;
+    const res = await fetch(`${GATEWAY}/v1/${ref}/auth/v1/signup`, {
+      method: "POST",
+      headers: { apikey: keys.anon_key, "content-type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!res.ok) {
+      setError((await res.json()).error ?? "Xato");
+      return;
+    }
+    setEmail("");
+    setPassword("");
+    setAdding(false);
+    await reload();
+  }
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Auth — foydalanuvchilar</h1>
-        <button className="btn-ghost" onClick={reload}>
-          ↻ yangilash
-        </button>
+    <div className="h-full overflow-auto">
+      <div className="mx-auto max-w-5xl px-8 py-8">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-medium">Authentication</h1>
+            <p className="mt-1 text-sm text-muted">
+              {users.length} foydalanuvchi
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button className="btn-default" onClick={reload}>
+              <RefreshCw size={14} /> Yangilash
+            </button>
+            <button className="btn" onClick={() => setAdding((v) => !v)}>
+              <UserPlus size={14} /> Foydalanuvchi qo'shish
+            </button>
+          </div>
+        </div>
+
+        {adding && (
+          <div className="card mb-5 flex flex-wrap items-end gap-3 p-4">
+            <div className="flex-1">
+              <label className="mb-1 block text-xs text-faint">Email</label>
+              <input
+                className="input"
+                placeholder="user@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <div className="flex-1">
+              <label className="mb-1 block text-xs text-faint">Parol</label>
+              <input
+                className="input"
+                type="password"
+                placeholder="kamida 6 belgi"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+            <button className="btn" onClick={addUser}>
+              Yaratish
+            </button>
+            <button className="btn-ghost" onClick={() => setAdding(false)}>
+              <X size={15} />
+            </button>
+          </div>
+        )}
+
+        {error && (
+          <div className="card mb-5 border-red-500/30 bg-red-500/5 p-3 text-sm text-red-400">
+            {error}
+          </div>
+        )}
+
+        <div className="grid-wrap">
+          <table className="grid">
+            <thead>
+              <tr>
+                <th>UID</th>
+                <th>Email</th>
+                <th>Provider</th>
+                <th>Tasdiqlangan</th>
+                <th>Yaratilgan</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="py-10 text-center text-faint">
+                    Foydalanuvchi yo'q
+                  </td>
+                </tr>
+              )}
+              {users.map((u) => (
+                <tr key={u.id}>
+                  <td className="text-faint">{u.id.slice(0, 8)}…</td>
+                  <td className="font-sans text-fg">
+                    <span className="flex items-center gap-2">
+                      <Mail size={13} className="text-faint" />
+                      {u.email}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="badge">email</span>
+                  </td>
+                  <td>
+                    {u.email_confirmed_at ? (
+                      <Check size={14} className="text-brand" />
+                    ) : (
+                      <span className="text-faint">—</span>
+                    )}
+                  </td>
+                  <td className="text-muted">
+                    {new Date(u.created_at).toLocaleDateString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
-      <p className="text-sm text-neutral-500">
-        Foydalanuvchilar <code className="kbd">/auth/v1/signup</code> orqali
-        qo'shiladi.
-      </p>
-      {error && <div className="card text-red-400">{error}</div>}
-      <RowsTable rows={rows} />
     </div>
   );
 }

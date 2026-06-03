@@ -1,16 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, usePathname } from "next/navigation";
-import { ProjectProvider } from "@/components/project-context";
+import { useParams } from "next/navigation";
+import { ChevronRight, Cloud } from "lucide-react";
+import { ProjectProvider, useProject } from "@/components/project-context";
+import { IconRail } from "@/components/icon-rail";
 
-const NAV = [
-  { slug: "", label: "Umumiy" },
-  { slug: "/sql", label: "SQL Editor" },
-  { slug: "/tables", label: "Jadvallar" },
-  { slug: "/auth", label: "Auth" },
-  { slug: "/storage", label: "Storage" },
-];
+function Topbar() {
+  const { ref, keys } = useProject();
+  return (
+    <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-bg px-4 text-[13px]">
+      <Link href="/" className="text-muted transition hover:text-fg">
+        Loyihalar
+      </Link>
+      <ChevronRight size={14} className="text-faint" />
+      <span className="font-medium text-fg">{keys?.name ?? "…"}</span>
+      <code className="kbd ml-1">{ref}</code>
+      <span className="ml-auto badge badge-brand">
+        <Cloud size={11} /> Local
+      </span>
+    </header>
+  );
+}
 
 export default function ProjectLayout({
   children,
@@ -18,42 +29,16 @@ export default function ProjectLayout({
   children: React.ReactNode;
 }) {
   const params = useParams();
-  const pathname = usePathname();
   const ref = String(params.ref);
-  const base = `/project/${ref}`;
 
   return (
     <ProjectProvider refId={ref}>
-      <div className="mb-6 flex items-center justify-between">
-        <Link href="/" className="text-sm text-neutral-500 hover:text-brand">
-          ← Loyihalar
-        </Link>
-        <code className="kbd">{ref}</code>
-      </div>
-      <div className="grid grid-cols-[180px_1fr] gap-6">
-        <nav className="space-y-1">
-          {NAV.map((item) => {
-            const href = base + item.slug;
-            const active =
-              item.slug === ""
-                ? pathname === base
-                : pathname.startsWith(href);
-            return (
-              <Link
-                key={item.slug}
-                href={href}
-                className={`block rounded-md px-3 py-2 text-sm transition ${
-                  active
-                    ? "bg-brand/10 text-brand"
-                    : "text-neutral-400 hover:bg-panel"
-                }`}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div>{children}</div>
+      <div className="flex h-screen overflow-hidden">
+        <IconRail />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <Topbar />
+          <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+        </div>
       </div>
     </ProjectProvider>
   );

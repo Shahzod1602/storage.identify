@@ -6,31 +6,95 @@
   color-scheme: dark;
 }
 
-body {
-  @apply bg-[#141414] text-neutral-200;
+* {
+  border-color: theme("colors.border");
 }
 
-.btn {
-  @apply inline-flex items-center gap-2 rounded-md bg-brand px-3 py-1.5 text-sm font-medium text-black transition hover:bg-brand-dark disabled:opacity-50;
+html,
+body {
+  height: 100%;
 }
-.btn-ghost {
-  @apply inline-flex items-center gap-2 rounded-md border border-edge px-3 py-1.5 text-sm text-neutral-300 transition hover:bg-panel;
+
+body {
+  @apply bg-surface text-fg antialiased;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
-.input {
-  @apply w-full rounded-md border border-edge bg-panel px-3 py-2 text-sm outline-none focus:border-brand;
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
 }
-.card {
-  @apply rounded-lg border border-edge bg-panel p-4;
+::-webkit-scrollbar-track {
+  background: transparent;
 }
-table.data {
-  @apply w-full border-collapse text-sm;
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border: 2px solid theme("colors.surface");
+  border-radius: 6px;
 }
-table.data th {
-  @apply border-b border-edge px-3 py-2 text-left font-medium text-neutral-400;
+::-webkit-scrollbar-thumb:hover {
+  background: #444;
 }
-table.data td {
-  @apply border-b border-edge/50 px-3 py-2 align-top;
-}
-code.kbd {
-  @apply rounded bg-black/40 px-1.5 py-0.5 font-mono text-xs text-brand;
+
+@layer components {
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md bg-brand px-3 py-1.5 text-[13px] font-medium text-black transition-colors hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-default {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-border-strong bg-panel px-3 py-1.5 text-[13px] text-fg transition-colors hover:bg-hover hover:border-faint disabled:opacity-50;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-[13px] text-muted transition-colors hover:bg-hover hover:text-fg;
+  }
+  .btn-xs {
+    @apply px-2 py-1 text-xs;
+  }
+
+  /* Inputs */
+  .input {
+    @apply w-full rounded-md border border-border-strong bg-bg px-3 py-1.5 text-[13px] text-fg placeholder:text-faint outline-none transition focus:border-brand focus:ring-1 focus:ring-brand/30;
+  }
+
+  /* Cards / surfaces */
+  .card {
+    @apply rounded-lg border border-border bg-panel;
+  }
+
+  /* Chips / badges */
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full border border-border-strong bg-bg px-2 py-0.5 text-[11px] font-medium text-muted;
+  }
+  .badge-brand {
+    @apply border-brand/30 bg-brand/10 text-brand;
+  }
+
+  /* Section title */
+  .h-title {
+    @apply text-base font-medium text-fg;
+  }
+
+  /* Data grid (Supabase Table Editor uslubi) */
+  .grid-wrap {
+    @apply overflow-auto rounded-lg border border-border bg-bg;
+  }
+  table.grid {
+    @apply w-full border-collapse text-[13px];
+  }
+  table.grid thead th {
+    @apply sticky top-0 z-10 whitespace-nowrap border-b border-r border-border bg-panel px-3 py-2 text-left font-medium text-muted;
+  }
+  table.grid tbody td {
+    @apply whitespace-nowrap border-b border-r border-border/60 px-3 py-1.5 font-mono text-[12px] text-fg/90;
+  }
+  table.grid tbody tr:hover {
+    @apply bg-hover/50;
+  }
+
+  .kbd {
+    @apply rounded border border-border-strong bg-bg px-1.5 py-0.5 font-mono text-[11px] text-muted;
+  }
+  .col-type {
+    @apply ml-1.5 font-mono text-[10px] font-normal uppercase tracking-wide text-faint;
+  }
 }
