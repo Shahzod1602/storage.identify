@@ -1,0 +1,27 @@
+# Local dev uchun Postgres. Docker o'rnatilgach: `docker compose -f docker/docker-compose.yml up -d`
+# Hozir local'da brew postgresql@17 ishlab tursa, buni ishlatish shart emas.
+services:
+  postgres:
+    image: postgres:17
+    container_name: storagedb-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: platform
+    command:
+      - "postgres"
+      - "-c"
+      - "wal_level=logical" # Phase 4 (Realtime) logical replication uchun
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d platform"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:

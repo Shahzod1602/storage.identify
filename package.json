@@ -1,0 +1,25 @@
+{
+  "name": "storagedb",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Self-hosted, multi-tenant Supabase muqobili (BaaS)",
+  "packageManager": "pnpm@10.30.2",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "db:migrate": "pnpm --filter @storagedb/db migrate",
+    "gateway:dev": "pnpm --filter @storagedb/gateway dev"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  }
+}
