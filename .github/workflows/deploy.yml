@@ -71,5 +71,5 @@ jobs:
 
       - name: Sog'liq tekshiruvi
         run: |
-          sleep 20
-          curl -fsS "http://${{ secrets.SERVER_HOST }}:8000/health" && echo " ✓ gateway sog'lom"
+          sleep 25
+          curl -fsS "${{ secrets.PUBLIC_URL }}/health" && echo " ✓ gateway sog'lom (HTTPS)"
