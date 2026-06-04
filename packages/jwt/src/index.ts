@@ -72,6 +72,36 @@ export async function verifyJwt(
   }
 }
 
+// ── Platforma admin sessiya tokeni (dashboard login uchun) ──
+const PLATFORM_SCOPE = "platform_admin";
+
+/** Dashboard login uchun platforma admin sessiya JWT imzolaydi. */
+export async function signPlatformToken(
+  secret: string,
+  expiresIn = "24h",
+): Promise<string> {
+  return new SignJWT({ scope: PLATFORM_SCOPE })
+    .setProtectedHeader({ alg: ALG, typ: "JWT" })
+    .setIssuedAt()
+    .setExpirationTime(expiresIn)
+    .sign(secretKey(secret));
+}
+
+/** Platforma admin sessiya tokenini tekshiradi. */
+export async function verifyPlatformToken(
+  secret: string,
+  token: string,
+): Promise<boolean> {
+  try {
+    const { payload } = await jwtVerify(token, secretKey(secret), {
+      algorithms: [ALG],
+    });
+    return payload.scope === PLATFORM_SCOPE;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Loyiha uchun standart anon va service_role kalitlarini generatsiya qiladi.
  * Bular uzoq muddatli (10 yil) JWT'lar — Supabase'dagi anon/service key kabi.

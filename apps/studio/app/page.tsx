@@ -1,197 +1,246 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, Search, Database, Copy, Check } from "lucide-react";
 import {
-  listProjects,
-  createProject,
-  type ProjectSummary,
-  type ProjectKeys,
-} from "@/lib/api";
+  Database,
+  KeyRound,
+  HardDrive,
+  Radio,
+  LayoutDashboard,
+  Code2,
+  ArrowRight,
+  Github,
+  Server,
+  ShieldCheck,
+  Zap,
+} from "lucide-react";
 
-export default function ProjectsPage() {
-  const [projects, setProjects] = useState<ProjectSummary[]>([]);
-  const [query, setQuery] = useState("");
-  const [name, setName] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [created, setCreated] = useState<ProjectKeys | null>(null);
+const FEATURES = [
+  {
+    icon: Database,
+    title: "Postgres + REST API",
+    desc: "Har loyiha alohida Postgres. Schemadan avtomatik REST (CRUD, filtrlar, joins, RPC) — RLS bilan himoyalangan.",
+  },
+  {
+    icon: KeyRound,
+    title: "Authentication",
+    desc: "Email/parol, JWT, refresh rotatsiya, email tasdiqlash, parol tiklash, admin boshqaruvi.",
+  },
+  {
+    icon: HardDrive,
+    title: "Storage",
+    desc: "Public/private bucketlar, signed URL'lar, fayl yuklash/yuklab olish — RLS bilan.",
+  },
+  {
+    icon: Radio,
+    title: "Realtime",
+    desc: "Postgres o'zgarishlari, broadcast kanallar va presence — WebSocket orqali, jonli.",
+  },
+  {
+    icon: LayoutDashboard,
+    title: "Dashboard",
+    desc: "Table editor, SQL editor, auth/storage boshqaruvi, jonli hisobotlar — Supabase Studio uslubida.",
+  },
+  {
+    icon: Code2,
+    title: "Client SDK",
+    desc: "supabase-js kabi: .from().select(), .auth, .storage, .channel(), .rpc(). TypeScript tayyor.",
+  },
+];
 
-  async function reload() {
-    try {
-      setProjects(await listProjects());
-      setError(null);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }
+const WHY = [
+  {
+    icon: Server,
+    title: "O'z serveringizda",
+    desc: "Ma'lumotlaringiz sizniki. Faqat VPS puli — obuna yo'q. Ko'p loyiha bitta serverda.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Xavfsiz",
+    desc: "Shifrlangan kalitlar, RLS izolyatsiya, HTTPS, per-key rate-limit, avtomatik backup.",
+  },
+  {
+    icon: Zap,
+    title: "Supabase-mos",
+    desc: "Tanish API va SDK. Mavjud bilimlaringiz ishlaydi, migratsiya oson.",
+  },
+];
 
-  useEffect(() => {
-    void reload();
-  }, []);
+const SNIPPET = `import { createClient } from "@storagedb/client";
 
-  async function onCreate() {
-    if (!name.trim()) return;
-    try {
-      setCreated(await createProject(name.trim()));
-      setName("");
-      setCreating(false);
-      await reload();
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  }
+const db = createClient(url, anonKey);
 
-  const filtered = projects.filter((p) =>
-    p.name.toLowerCase().includes(query.toLowerCase()),
-  );
+// Database
+const { data } = await db.from("todos")
+  .select("*, author(*)")
+  .eq("done", false);
 
+// Auth
+await db.auth.signUp({ email, password });
+
+// Realtime
+db.channel("room")
+  .on("INSERT", (p) => console.log(p.record))
+  .subscribe();`;
+
+export default function LandingPage() {
   return (
-    <div className="min-h-screen">
-      <header className="border-b border-border bg-bg">
-        <div className="mx-auto flex max-w-6xl items-center gap-3 px-6 py-3">
-          <span className="grid h-7 w-7 place-items-center rounded-md bg-brand text-sm font-bold text-black">
-            s
+    <div className="min-h-screen bg-surface">
+      {/* Nav */}
+      <nav className="sticky top-0 z-20 border-b border-border/60 bg-surface/80 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
+          <div className="flex items-center gap-2 font-semibold">
+            <span className="grid h-7 w-7 place-items-center rounded-md bg-brand text-sm font-bold text-black">
+              s
+            </span>
+            storagedb
+          </div>
+          <div className="flex items-center gap-2">
+            <a
+              href="https://github.com/Shahzod1602/storage.identify"
+              target="_blank"
+              className="btn-ghost"
+            >
+              <Github size={15} /> GitHub
+            </a>
+            <Link href="/dashboard" className="btn">
+              Dashboard <ArrowRight size={15} />
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero */}
+      <section className="relative overflow-hidden border-b border-border">
+        {/* fon: yashil nur + grid */}
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute left-1/2 top-[-10%] h-[420px] w-[820px] -translate-x-1/2 rounded-full bg-brand/15 blur-[120px]" />
+          <div
+            className="absolute inset-0 opacity-[0.04]"
+            style={{
+              backgroundImage:
+                "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)",
+              backgroundSize: "44px 44px",
+            }}
+          />
+        </div>
+        <div className="relative mx-auto max-w-3xl px-6 py-28 text-center">
+          <span className="badge badge-brand mb-6">
+            Self-hosted Backend-as-a-Service
           </span>
-          <span className="font-medium">storagedb</span>
-          <span className="text-faint">/</span>
-          <span className="text-muted">Tashkilot</span>
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-6xl px-6 py-10">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-xl font-medium">Loyihalar</h1>
-          <button className="btn" onClick={() => setCreating((v) => !v)}>
-            <Plus size={15} /> Yangi loyiha
-          </button>
-        </div>
-
-        <div className="relative mb-6 max-w-xs">
-          <Search
-            size={15}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-faint"
-          />
-          <input
-            className="input pl-9"
-            placeholder="Loyiha qidirish..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </div>
-
-        {creating && (
-          <div className="card mb-6 flex items-center gap-3 p-4">
-            <input
-              autoFocus
-              className="input max-w-sm"
-              placeholder="Loyiha nomi"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && onCreate()}
-            />
-            <button className="btn" onClick={onCreate}>
-              Yaratish
-            </button>
-            <button className="btn-ghost" onClick={() => setCreating(false)}>
-              Bekor
-            </button>
+          <h1 className="text-5xl font-semibold leading-[1.05] tracking-tight sm:text-6xl">
+            O'zingizning <span className="text-brand">Supabase</span>'ingiz.
+          </h1>
+          <p className="mx-auto mt-6 max-w-xl text-lg text-muted">
+            Postgres, Auth, Storage, Realtime va Dashboard — hammasi bitta
+            platformada, o'z serveringizda. Obuna yo'q, faqat VPS.
+          </p>
+          <div className="mt-9 flex items-center justify-center gap-3">
+            <Link href="/dashboard" className="btn px-5 py-2.5 text-sm">
+              Boshlash <ArrowRight size={16} />
+            </Link>
+            <a
+              href="https://github.com/Shahzod1602/storage.identify"
+              target="_blank"
+              className="btn-default px-5 py-2.5 text-sm"
+            >
+              <Github size={16} /> Kodni ko'rish
+            </a>
           </div>
-        )}
+        </div>
+      </section>
 
-        {created && <NewKeys keys={created} onClose={() => setCreated(null)} />}
+      {/* Features */}
+      <section className="mx-auto max-w-6xl px-6 py-20">
+        <div className="mb-12 text-center">
+          <h2 className="text-2xl font-medium">Hammasi tayyor</h2>
+          <p className="mt-2 text-muted">
+            Backend uchun kerak bo'lgan barcha narsa — qutidan tashqari.
+          </p>
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {FEATURES.map((f) => (
+            <div
+              key={f.title}
+              className="card group p-5 transition hover:border-brand/40 hover:bg-hover"
+            >
+              <span className="grid h-10 w-10 place-items-center rounded-lg border border-border bg-bg text-brand transition group-hover:scale-110">
+                <f.icon size={18} />
+              </span>
+              <h3 className="mt-4 font-medium">{f.title}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted">
+                {f.desc}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
 
-        {error && (
-          <div className="card mb-6 border-red-500/30 bg-red-500/5 p-4 text-sm text-red-400">
-            {error}
-          </div>
-        )}
-
-        {loading ? (
-          <p className="text-sm text-faint">Yuklanmoqda...</p>
-        ) : filtered.length === 0 ? (
-          <div className="grid place-items-center rounded-lg border border-dashed border-border py-20 text-center">
-            <Database size={28} className="mb-3 text-faint" />
-            <p className="text-sm text-muted">Loyiha topilmadi.</p>
-          </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((p) => (
-              <Link
-                key={p.ref}
-                href={`/project/${p.ref}`}
-                className="card group p-4 transition hover:border-border-strong hover:bg-hover"
-              >
-                <div className="flex items-start justify-between">
-                  <span className="grid h-9 w-9 place-items-center rounded-md border border-border bg-bg text-brand">
-                    <Database size={16} />
+      {/* Code + Why */}
+      <section className="border-y border-border bg-bg/40">
+        <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 lg:grid-cols-2">
+          <div>
+            <h2 className="text-2xl font-medium">Tanish SDK bilan</h2>
+            <p className="mt-2 text-muted">
+              <code className="kbd">supabase-js</code> bilishingiz kifoya — bir
+              xil tajriba.
+            </p>
+            <div className="mt-6 space-y-5">
+              {WHY.map((w) => (
+                <div key={w.title} className="flex gap-3">
+                  <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-md bg-brand/10 text-brand">
+                    <w.icon size={16} />
                   </span>
-                  <span className="badge">
-                    <span className="h-1.5 w-1.5 rounded-full bg-brand" /> Active
-                  </span>
+                  <div>
+                    <div className="font-medium">{w.title}</div>
+                    <div className="text-sm text-muted">{w.desc}</div>
+                  </div>
                 </div>
-                <div className="mt-3 font-medium group-hover:text-brand">
-                  {p.name}
-                </div>
-                <div className="mt-1 font-mono text-xs text-faint">{p.ref}</div>
-                <div className="mt-3 border-t border-border pt-2 text-xs text-faint">
-                  Postgres · {p.db_name}
-                </div>
-              </Link>
-            ))}
+              ))}
+            </div>
           </div>
-        )}
-      </div>
-    </div>
-  );
-}
+          <div className="overflow-hidden rounded-xl border border-border bg-[#141414]">
+            <div className="flex items-center gap-1.5 border-b border-border px-4 py-3">
+              <span className="h-2.5 w-2.5 rounded-full bg-red-500/70" />
+              <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/70" />
+              <span className="h-2.5 w-2.5 rounded-full bg-brand/70" />
+              <span className="ml-2 text-xs text-faint">app.ts</span>
+            </div>
+            <pre className="overflow-x-auto p-5 font-mono text-[12.5px] leading-relaxed text-fg/90">
+              {SNIPPET}
+            </pre>
+          </div>
+        </div>
+      </section>
 
-function NewKeys({
-  keys,
-  onClose,
-}: {
-  keys: ProjectKeys;
-  onClose: () => void;
-}) {
-  return (
-    <div className="card mb-6 border-brand/30 bg-brand/[0.04] p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <p className="text-sm font-medium text-brand">
-          "{keys.name}" yaratildi — kalitlarni saqlang
+      {/* CTA */}
+      <section className="mx-auto max-w-3xl px-6 py-24 text-center">
+        <h2 className="text-3xl font-medium">Bugun boshlang</h2>
+        <p className="mx-auto mt-3 max-w-md text-muted">
+          Loyiha yarating, jadval tuzing, API'ni ishlating — bir necha
+          daqiqada.
         </p>
-        <button className="btn-ghost" onClick={onClose}>
-          ✕
-        </button>
-      </div>
-      <CopyRow label="ref" value={keys.ref} />
-      <CopyRow label="anon key" value={keys.anon_key} />
-      <CopyRow label="service key" value={keys.service_key} />
-    </div>
-  );
-}
+        <Link href="/dashboard" className="btn mt-8 px-6 py-2.5 text-sm">
+          Dashboard'ga kirish <ArrowRight size={16} />
+        </Link>
+      </section>
 
-function CopyRow({ label, value }: { label: string; value: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <div className="flex items-center gap-3 border-b border-border/50 py-2 last:border-0">
-      <span className="w-24 shrink-0 text-xs text-faint">{label}</span>
-      <code className="flex-1 truncate font-mono text-xs text-muted">
-        {value}
-      </code>
-      <button
-        className="btn-ghost btn-xs"
-        onClick={() => {
-          navigator.clipboard.writeText(value);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1200);
-        }}
-      >
-        {copied ? <Check size={13} className="text-brand" /> : <Copy size={13} />}
-      </button>
+      {/* Footer */}
+      <footer className="border-t border-border">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 py-8 text-sm text-faint sm:flex-row">
+          <div className="flex items-center gap-2">
+            <span className="grid h-5 w-5 place-items-center rounded bg-brand text-[10px] font-bold text-black">
+              s
+            </span>
+            storagedb — self-hosted BaaS
+          </div>
+          <a
+            href="https://github.com/Shahzod1602/storage.identify"
+            target="_blank"
+            className="transition hover:text-fg"
+          >
+            GitHub
+          </a>
+        </div>
+      </footer>
     </div>
   );
 }

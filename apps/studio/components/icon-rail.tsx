@@ -37,7 +37,7 @@ export function IconRail() {
   return (
     <aside className="flex w-14 shrink-0 flex-col items-center border-r border-border bg-bg py-3">
       <Link
-        href="/"
+        href="/dashboard"
         title="Loyihalar"
         className="mb-4 grid h-8 w-8 place-items-center rounded-md bg-brand text-black transition hover:bg-brand-600"
       >

@@ -3,12 +3,53 @@
 
 export const GATEWAY =
   process.env.NEXT_PUBLIC_GATEWAY_URL ?? "http://localhost:8000";
-const ADMIN_TOKEN =
-  process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? "dev-admin-token-change-me";
+
+const SESSION_KEY = "sdb_session";
+
+// ── Sessiya (login) ── admin token client'ga bakelashmaydi.
+export function getSession(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(SESSION_KEY);
+}
+export function setSession(token: string): void {
+  localStorage.setItem(SESSION_KEY, token);
+}
+export function clearSession(): void {
+  localStorage.removeItem(SESSION_KEY);
+}
+export function isAuthed(): boolean {
+  return !!getSession();
+}
+
+/** Parol bilan login -> sessiya token saqlanadi. */
+export async function login(password: string): Promise<void> {
+  const res = await fetch(`${GATEWAY}/admin/login`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ password }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error ?? "Login muvaffaqiyatsiz");
+  setSession(data.token);
+}
+
+export function logout(): void {
+  clearSession();
+  if (typeof window !== "undefined") window.location.href = "/login";
+}
+
+/** Admin so'rovlar uchun header (Bearer sessiya). */
+function adminHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  return { authorization: `Bearer ${getSession() ?? ""}`, ...extra };
+}
 
 async function jsonOrThrow(res: Response) {
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
+  if (res.status === 401 && typeof window !== "undefined") {
+    clearSession();
+    window.location.href = "/login";
+  }
   if (!res.ok) {
     throw new Error(data?.error ?? `HTTP ${res.status}`);
   }
@@ -33,7 +74,7 @@ export interface ProjectKeys {
 export async function listProjects(): Promise<ProjectSummary[]> {
   return jsonOrThrow(
     await fetch(`${GATEWAY}/admin/projects`, {
-      headers: { "x-admin-token": ADMIN_TOKEN },
+      headers: adminHeaders(),
       cache: "no-store",
     }),
   );
@@ -43,7 +84,7 @@ export async function createProject(name: string): Promise<ProjectKeys> {
   return jsonOrThrow(
     await fetch(`${GATEWAY}/admin/projects`, {
       method: "POST",
-      headers: { "x-admin-token": ADMIN_TOKEN, "content-type": "application/json" },
+      headers: adminHeaders({ "content-type": "application/json" }),
       body: JSON.stringify({ name }),
     }),
   );
@@ -64,7 +105,7 @@ export interface ProjectMetrics {
 export async function getMetrics(): Promise<ProjectMetrics[]> {
   return jsonOrThrow(
     await fetch(`${GATEWAY}/admin/metrics`, {
-      headers: { "x-admin-token": ADMIN_TOKEN },
+      headers: adminHeaders(),
       cache: "no-store",
     }),
   );
@@ -73,7 +114,7 @@ export async function getMetrics(): Promise<ProjectMetrics[]> {
 export async function getKeys(ref: string): Promise<ProjectKeys> {
   return jsonOrThrow(
     await fetch(`${GATEWAY}/admin/projects/${ref}/keys`, {
-      headers: { "x-admin-token": ADMIN_TOKEN },
+      headers: adminHeaders(),
       cache: "no-store",
     }),
   );

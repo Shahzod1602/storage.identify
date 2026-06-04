@@ -5,12 +5,13 @@ import { useParams } from "next/navigation";
 import { ChevronRight, Cloud } from "lucide-react";
 import { ProjectProvider, useProject } from "@/components/project-context";
 import { IconRail } from "@/components/icon-rail";
+import { useRequireAuth } from "@/components/auth-guard";
 
 function Topbar() {
   const { ref, keys } = useProject();
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-bg px-4 text-[13px]">
-      <Link href="/" className="text-muted transition hover:text-fg">
+      <Link href="/dashboard" className="text-muted transition hover:text-fg">
         Loyihalar
       </Link>
       <ChevronRight size={14} className="text-faint" />
@@ -30,6 +31,8 @@ export default function ProjectLayout({
 }) {
   const params = useParams();
   const ref = String(params.ref);
+  const ready = useRequireAuth();
+  if (!ready) return null;
 
   return (
     <ProjectProvider refId={ref}>
