@@ -1,0 +1,75 @@
+name: Build & Deploy
+
+# main'ga push -> image'lar GHCR'da build qilinadi -> serverga deploy.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  GATEWAY_IMAGE: ghcr.io/shahzod1602/storagedb-gateway:latest
+  STUDIO_IMAGE: ghcr.io/shahzod1602/storagedb-studio:latest
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: GHCR login
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Gateway image (build + push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ env.GATEWAY_IMAGE }}
+
+      - name: Studio image (build + push)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./apps/studio
+          file: ./apps/studio/Dockerfile
+          push: true
+          tags: ${{ env.STUDIO_IMAGE }}
+          build-args: |
+            NEXT_PUBLIC_GATEWAY_URL=http://${{ secrets.SERVER_HOST }}:8000
+            NEXT_PUBLIC_ADMIN_TOKEN=${{ secrets.PLATFORM_ADMIN_TOKEN }}
+
+      - name: SSH sozlash
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.SERVER_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Compose faylni ko'chirish
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@${{ secrets.SERVER_HOST }} 'mkdir -p /opt/storagedb/docker'
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            docker/docker-compose.server.yml \
+            root@${{ secrets.SERVER_HOST }}:/opt/storagedb/docker/
+
+      - name: Deploy (pull + up)
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@${{ secrets.SERVER_HOST }} \
+            "echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin \
+             && cd /opt/storagedb \
+             && docker compose --env-file .env -f docker/docker-compose.server.yml pull \
+             && docker compose --env-file .env -f docker/docker-compose.server.yml up -d \
+             && docker image prune -f"
+
+      - name: Sog'liq tekshiruvi
+        run: |
+          sleep 20
+          curl -fsS "http://${{ secrets.SERVER_HOST }}:8000/health" && echo " ✓ gateway sog'lom"

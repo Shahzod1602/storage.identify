@@ -1,0 +1,51 @@
+# Server deploy — tayyor image'larni GHCR'dan PULL qiladi (serverda build YO'Q).
+# Image'lar GitHub Actions'da build qilinadi (server RAM yetarli emas).
+# Server .env'da: PUBLIC_HOST, POSTGRES_PASSWORD, PLATFORM_SECRET,
+# PLATFORM_ADMIN_TOKEN o'rnatilgan bo'lishi kerak.
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?kerak}
+      POSTGRES_DB: platform
+    command: ["postgres", "-c", "wal_level=logical"]
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d platform"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  gateway:
+    image: ghcr.io/shahzod1602/storagedb-gateway:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/platform
+      PROJECTS_DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres
+      PLATFORM_SECRET: ${PLATFORM_SECRET:?kerak}
+      PLATFORM_ADMIN_TOKEN: ${PLATFORM_ADMIN_TOKEN:?kerak}
+      GATEWAY_CORS_ORIGINS: http://${PUBLIC_HOST}:3001
+      STORAGE_DIR: /data/storage
+    ports:
+      - "8000:8000"
+    volumes:
+      - storage-data:/data/storage
+
+  studio:
+    image: ghcr.io/shahzod1602/storagedb-studio:latest
+    restart: unless-stopped
+    depends_on:
+      - gateway
+    ports:
+      - "3001:3001"
+
+volumes:
+  postgres-data:
+  storage-data:
