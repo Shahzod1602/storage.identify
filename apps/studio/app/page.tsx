@@ -94,6 +94,9 @@ export default function LandingPage() {
             storagedb
           </div>
           <div className="flex items-center gap-2">
+            <Link href="/docs" className="btn-ghost">
+              Docs
+            </Link>
             <a
               href="https://github.com/Shahzod1602/storage.identify"
               target="_blank"
