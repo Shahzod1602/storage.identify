@@ -132,6 +132,25 @@ docker compose -f docker/docker-compose.prod.yml up -d --build
 - **Per-key rate-limit** — har (IP + apikey) alohida; CORS `GATEWAY_CORS_ORIGINS` bilan cheklanadi
 - helmet headerlari, scrypt parol hashing, har loyiha alohida DB + authenticator izolyatsiya
 
+## Monitoring (Grafana + Prometheus)
+
+Studio'da har loyiha uchun **Hisobotlar** sahifasi (jonli request/latency/DB hajmi).
+To'liq tarixiy grafiklar + server CPU/RAM uchun Grafana stack:
+
+```bash
+# Prod stack ishlab turganda (bir xil 'storagedb' tarmoqda):
+docker compose -f docker/docker-compose.observability.yml up -d
+# Grafana → http://<server>:3002 (admin / GRAFANA_PASSWORD), dashboard avtomatik yuklanadi
+```
+
+Gateway `/metrics` (Prometheus) — per-loyiha `sdb_http_requests_total`,
+`sdb_http_request_duration_seconds`, `sdb_project_db_bytes`, `sdb_realtime_connections`;
+node-exporter (server CPU/RAM/disk) + postgres-exporter (DB).
+
+> Eslatma: hamma loyiha bitta jarayonni baham ko'rgani uchun **aniq per-loyiha CPU/RAM**
+> hozircha yo'q (proxy: DB hajmi, request, latency). Buning uchun per-loyiha izolyatsiya
+> (cgroups/konteyner) kerak — yo'l xaritasida.
+
 ## Backup / Restore
 
 ```bash

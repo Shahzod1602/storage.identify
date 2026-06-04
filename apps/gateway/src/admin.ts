@@ -8,6 +8,7 @@ import {
 } from "@storagedb/db";
 import { generateProjectKeys } from "@storagedb/jwt";
 import { resolveContext, GatewayError } from "./context.js";
+import { metricsSummary } from "./metrics.js";
 
 function requireAdmin(req: FastifyRequest): void {
   const token = req.headers["x-admin-token"];
@@ -17,6 +18,12 @@ function requireAdmin(req: FastifyRequest): void {
 }
 
 export function registerAdminRoutes(app: FastifyInstance): void {
+  // Monitoring: per-loyiha metrikalar (studio Reports sahifasi uchun)
+  app.get("/admin/metrics", async (req, reply) => {
+    requireAdmin(req);
+    return reply.send(await metricsSummary());
+  });
+
   // Loyihalar ro'yxati (maxfiy maydonlarsiz)
   app.get("/admin/projects", async (req, reply) => {
     requireAdmin(req);

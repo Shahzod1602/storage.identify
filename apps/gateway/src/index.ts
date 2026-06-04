@@ -19,6 +19,13 @@ import { registerAuthRoutes } from "./auth.js";
 import { registerStorageRoutes } from "./storage.js";
 import { registerRealtime, hub } from "./realtime.js";
 import { registerAdminRoutes } from "./admin.js";
+import {
+  recordRequest,
+  metricsText,
+  metricsContentType,
+  startMetricsCollector,
+  stopMetricsCollector,
+} from "./metrics.js";
 
 const cfg = getConfig();
 
@@ -56,8 +63,20 @@ app.addContentTypeParser(
   (_req, body, done) => done(null, body),
 );
 
+// Har so'rovni o'lchaymiz (Prometheus + Reports uchun).
+app.addHook("onResponse", (req, reply, done) => {
+  recordRequest(req.url, reply.statusCode, reply.elapsedTime);
+  done();
+});
+
 // Sog'liq tekshiruvi
 app.get("/health", async () => ({ status: "ok", service: "gateway" }));
+
+// Prometheus metrikalari (ichki tarmoq — productionда tashqariga chiqarilmaydi).
+app.get("/metrics", async (_req, reply) => {
+  reply.header("content-type", metricsContentType);
+  return reply.send(await metricsText());
+});
 
 // ── Control-plane: yangi loyiha yaratish ───────────────────────────────
 const createProjectBody = z.object({
@@ -134,6 +153,7 @@ app.setErrorHandler((err, _req, reply) => {
 // ── Ishga tushirish / to'xtatish ───────────────────────────────────────
 async function shutdown() {
   app.log.info("To'xtatilmoqda...");
+  stopMetricsCollector();
   await hub.close();
   await app.close();
   await closeProjectPools();
@@ -145,7 +165,10 @@ process.on("SIGTERM", shutdown);
 
 // Boshlanishida control-plane migratsiyalarini bajaramiz (idempotent).
 runMigrations()
-  .then(() => app.listen({ port: cfg.GATEWAY_PORT, host: cfg.GATEWAY_HOST }))
+  .then(() => {
+    startMetricsCollector(); // per-loyiha DB gauge yig'uvchi
+    return app.listen({ port: cfg.GATEWAY_PORT, host: cfg.GATEWAY_HOST });
+  })
   .then((addr) => app.log.info(`Gateway tayyor: ${addr}`))
   .catch((err) => {
     app.log.error(err);

@@ -79,3 +79,8 @@ volumes:
   storage-data:
   caddy-data:
   caddy-config:
+
+# Nomlangan tarmoq — observability stack (Prometheus/Grafana) shunga ulanadi.
+networks:
+  default:
+    name: storagedb

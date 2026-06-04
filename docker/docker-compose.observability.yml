@@ -1,0 +1,60 @@
+# Observability stack: Prometheus + Grafana + node/postgres exporterlar.
+# Prod stack (docker-compose.prod.yml) bilan BIR XIL tarmoqda ishlaydi.
+#
+# Ishga tushirish (prod stack ishlab turganda):
+#   docker compose -f docker/docker-compose.observability.yml up -d
+#   Grafana: http://<server>:3002  (login: admin / GRAFANA_PASSWORD)
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks: [storagedb]
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    depends_on: [prometheus]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3002:3000"
+    networks: [storagedb]
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    restart: unless-stopped
+    pid: host
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/rootfs"
+    networks: [storagedb]
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/postgres?sslmode=disable"
+    networks: [storagedb]
+
+volumes:
+  prometheus-data:
+  grafana-data:
+
+# Prod compose yaratgan tarmoqqa ulanamiz (gateway:8000, postgres:5432 ko'rinishi uchun).
+networks:
+  storagedb:
+    external: true
+    name: storagedb

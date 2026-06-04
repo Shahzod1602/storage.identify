@@ -49,6 +49,27 @@ export async function createProject(name: string): Promise<ProjectKeys> {
   );
 }
 
+export interface ProjectMetrics {
+  ref: string;
+  name: string;
+  requests: number;
+  errors: number;
+  avgLatencyMs: number;
+  p95LatencyMs: number;
+  dbBytes: number;
+  dbConnections: number;
+  realtimeConnections: number;
+}
+
+export async function getMetrics(): Promise<ProjectMetrics[]> {
+  return jsonOrThrow(
+    await fetch(`${GATEWAY}/admin/metrics`, {
+      headers: { "x-admin-token": ADMIN_TOKEN },
+      cache: "no-store",
+    }),
+  );
+}
+
 export async function getKeys(ref: string): Promise<ProjectKeys> {
   return jsonOrThrow(
     await fetch(`${GATEWAY}/admin/projects/${ref}/keys`, {

@@ -8,6 +8,7 @@ import {
   SquareTerminal,
   Users,
   Archive,
+  BarChart3,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -24,6 +25,7 @@ const ITEMS: Item[] = [
   { slug: "/sql", label: "SQL Editor", icon: SquareTerminal },
   { slug: "/auth", label: "Authentication", icon: Users },
   { slug: "/storage", label: "Storage", icon: Archive },
+  { slug: "/reports", label: "Hisobotlar", icon: BarChart3 },
 ];
 
 export function IconRail() {

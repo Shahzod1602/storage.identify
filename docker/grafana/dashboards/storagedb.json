@@ -1,0 +1,84 @@
+{
+  "uid": "storagedb-main",
+  "title": "storagedb — Overview",
+  "tags": ["storagedb"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 1, "type": "stat", "title": "Server CPU %",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 90 } ] } } },
+      "targets": [ { "refId": "A", "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[1m])) * 100)" } ]
+    },
+    {
+      "id": 2, "type": "stat", "title": "Server RAM %",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 75 }, { "color": "red", "value": 90 } ] } } },
+      "targets": [ { "refId": "A", "expr": "(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100" } ]
+    },
+    {
+      "id": 3, "type": "stat", "title": "Disk ishlatilgan %",
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 75 }, { "color": "red", "value": 90 } ] } } },
+      "targets": [ { "refId": "A", "expr": "(1 - node_filesystem_avail_bytes{mountpoint=\"/rootfs\"} / node_filesystem_size_bytes{mountpoint=\"/rootfs\"}) * 100" } ]
+    },
+    {
+      "id": 4, "type": "stat", "title": "Postgres ulanishlar",
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 80 }, { "color": "red", "value": 150 } ] } } },
+      "targets": [ { "refId": "A", "expr": "sum(pg_stat_database_numbackends)" } ]
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "So'rovlar/sek (loyiha bo'yicha)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
+      "targets": [ { "refId": "A", "expr": "sum by (project) (rate(sdb_http_requests_total{project!=\"system\"}[1m]))", "legendFormat": "{{project}}" } ]
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "p95 kechikish (loyiha bo'yicha)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
+      "targets": [ { "refId": "A", "expr": "histogram_quantile(0.95, sum by (project, le) (rate(sdb_http_request_duration_seconds_bucket{project!=\"system\"}[5m])))", "legendFormat": "{{project}}" } ]
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "DB hajmi (loyiha bo'yicha)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
+      "targets": [ { "refId": "A", "expr": "sdb_project_db_bytes", "legendFormat": "{{project}}" } ]
+    },
+    {
+      "id": 8, "type": "timeseries", "title": "Xatolar/sek (4xx+5xx)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
+      "targets": [ { "refId": "A", "expr": "sum by (project) (rate(sdb_http_requests_total{status=~\"4xx|5xx\"}[5m]))", "legendFormat": "{{project}}" } ]
+    },
+    {
+      "id": 9, "type": "timeseries", "title": "Realtime ulanishlar",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
+      "targets": [ { "refId": "A", "expr": "sdb_realtime_connections", "legendFormat": "{{project}}" } ]
+    },
+    {
+      "id": 10, "type": "timeseries", "title": "DB ulanishlar (loyiha bo'yicha)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
+      "targets": [ { "refId": "A", "expr": "sdb_project_db_connections", "legendFormat": "{{project}}" } ]
+    }
+  ]
+}

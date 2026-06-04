@@ -3,6 +3,7 @@ import websocket from "@fastify/websocket";
 import { getProjectByRef } from "@storagedb/db";
 import { verifyJwt } from "@storagedb/jwt";
 import { RealtimeHub, type WebSocketLike } from "@storagedb/realtime";
+import { realtimeConnect, realtimeDisconnect } from "./metrics.js";
 
 export const hub = new RealtimeHub();
 
@@ -51,6 +52,7 @@ export async function registerRealtime(app: FastifyInstance): Promise<void> {
       }
 
       socket.send(JSON.stringify({ type: "ready", ref, role: claims.role }));
+      realtimeConnect(ref);
 
       socket.on("message", (raw: unknown) => {
         let msg: ClientMessage;
@@ -74,7 +76,10 @@ export async function registerRealtime(app: FastifyInstance): Promise<void> {
         }
       });
 
-      socket.on("close", () => hub.removeSocket(ref, socket));
+      socket.on("close", () => {
+        hub.removeSocket(ref, socket);
+        realtimeDisconnect(ref);
+      });
     },
   );
 }
