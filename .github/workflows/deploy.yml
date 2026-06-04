@@ -43,7 +43,7 @@ jobs:
           push: true
           tags: ${{ env.STUDIO_IMAGE }}
           build-args: |
-            NEXT_PUBLIC_GATEWAY_URL=http://${{ secrets.SERVER_HOST }}:8000
+            NEXT_PUBLIC_GATEWAY_URL=${{ secrets.PUBLIC_URL }}
             NEXT_PUBLIC_ADMIN_TOKEN=${{ secrets.PLATFORM_ADMIN_TOKEN }}
 
       - name: SSH sozlash
@@ -53,11 +53,11 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "${{ secrets.SERVER_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
 
-      - name: Compose faylni ko'chirish
+      - name: Compose + Caddyfile ko'chirish
         run: |
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@${{ secrets.SERVER_HOST }} 'mkdir -p /opt/storagedb/docker'
           scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
-            docker/docker-compose.server.yml \
+            docker/docker-compose.server.yml docker/Caddyfile.server \
             root@${{ secrets.SERVER_HOST }}:/opt/storagedb/docker/
 
       - name: Deploy (pull + up)

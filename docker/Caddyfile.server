@@ -1,0 +1,14 @@
+# Bitta domen, path-routing: API (/v1, /admin, /health, /metrics) -> gateway,
+# qolgani (dashboard) -> studio. Caddy avtomatik Let's Encrypt HTTPS beradi.
+{$DOMAIN} {
+	# API yo'llari -> gateway (WebSocket ham avtomatik proxy qilinadi)
+	@api path /v1/* /admin/* /health /metrics
+	handle @api {
+		reverse_proxy gateway:8000
+	}
+
+	# Qolgani -> dashboard (Next.js studio)
+	handle {
+		reverse_proxy studio:3001
+	}
+}

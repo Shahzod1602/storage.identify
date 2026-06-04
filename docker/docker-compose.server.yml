@@ -1,8 +1,21 @@
-# Server deploy — tayyor image'larni GHCR'dan PULL qiladi (serverda build YO'Q).
-# Image'lar GitHub Actions'da build qilinadi (server RAM yetarli emas).
-# Server .env'da: PUBLIC_HOST, POSTGRES_PASSWORD, PLATFORM_SECRET,
-# PLATFORM_ADMIN_TOKEN o'rnatilgan bo'lishi kerak.
+# Server deploy — tayyor image'larni GHCR'dan PULL qiladi + Caddy (HTTPS).
+# Bitta domen ostida: dashboard root'da, API /v1·/admin yo'llarида.
+# Server .env'da: DOMAIN, PUBLIC_URL, POSTGRES_PASSWORD, PLATFORM_SECRET, PLATFORM_ADMIN_TOKEN.
 services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [gateway, studio]
+    environment:
+      DOMAIN: ${DOMAIN:?kerak}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile.server:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
   postgres:
     image: postgres:17
     restart: unless-stopped
@@ -31,21 +44,22 @@ services:
       PROJECTS_DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres
       PLATFORM_SECRET: ${PLATFORM_SECRET:?kerak}
       PLATFORM_ADMIN_TOKEN: ${PLATFORM_ADMIN_TOKEN:?kerak}
-      GATEWAY_CORS_ORIGINS: http://${PUBLIC_HOST}:3001
+      GATEWAY_CORS_ORIGINS: ${PUBLIC_URL:?kerak}
       STORAGE_DIR: /data/storage
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     volumes:
       - storage-data:/data/storage
 
   studio:
     image: ghcr.io/shahzod1602/storagedb-studio:latest
     restart: unless-stopped
-    depends_on:
-      - gateway
-    ports:
-      - "3001:3001"
+    depends_on: [gateway]
+    expose:
+      - "3001"
 
 volumes:
   postgres-data:
   storage-data:
+  caddy-data:
+  caddy-config:
