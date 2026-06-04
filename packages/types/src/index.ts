@@ -11,6 +11,7 @@ export interface Project {
   name: string;
   dbName: string; // proj_<ref>
   jwtSecret: string; // shu loyiha JWT'larini imzolash/tekshirish uchun
+  ownerId: string | null; // platform_users.id (loyiha egasi)
   createdAt: string;
 }
 

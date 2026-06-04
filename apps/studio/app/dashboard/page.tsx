@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, Search, Database, Copy, Check, LogOut } from "lucide-react";
+import { Plus, Search, Database, Copy, Check, LogOut, Users } from "lucide-react";
 import {
   listProjects,
   createProject,
+  getMe,
   logout,
   type ProjectSummary,
   type ProjectKeys,
@@ -14,6 +15,7 @@ import { useRequireAuth } from "@/components/auth-guard";
 
 export default function DashboardPage() {
   const ready = useRequireAuth();
+  const [role, setRole] = useState<"super_admin" | "user" | null>(null);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [query, setQuery] = useState("");
   const [name, setName] = useState("");
@@ -34,7 +36,10 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
-    if (ready) void reload();
+    if (ready) {
+      void reload();
+      getMe().then((m) => setRole(m.role)).catch(() => {});
+    }
   }, [ready]);
 
   async function onCreate() {
@@ -67,13 +72,19 @@ export default function DashboardPage() {
           </Link>
           <span className="text-faint">/</span>
           <span className="text-muted">Tashkilot</span>
-          <button
-            className="btn-ghost ml-auto"
-            onClick={logout}
-            title="Chiqish"
-          >
-            <LogOut size={15} /> Chiqish
-          </button>
+          {role === "super_admin" && (
+            <span className="badge badge-brand">super admin</span>
+          )}
+          <div className="ml-auto flex items-center gap-1">
+            {role === "super_admin" && (
+              <Link href="/dashboard/users" className="btn-ghost">
+                <Users size={15} /> Userlar
+              </Link>
+            )}
+            <button className="btn-ghost" onClick={logout} title="Chiqish">
+              <LogOut size={15} /> Chiqish
+            </button>
+          </div>
         </div>
       </header>
 

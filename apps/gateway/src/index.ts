@@ -18,7 +18,7 @@ import { registerRestRoutes } from "./rest.js";
 import { registerAuthRoutes } from "./auth.js";
 import { registerStorageRoutes } from "./storage.js";
 import { registerRealtime, hub } from "./realtime.js";
-import { registerAdminRoutes } from "./admin.js";
+import { registerAdminRoutes, seedSuperAdmin } from "./admin.js";
 import {
   recordRequest,
   metricsText,
@@ -168,6 +168,7 @@ process.on("SIGTERM", shutdown);
 
 // Boshlanishida control-plane migratsiyalarini bajaramiz (idempotent).
 runMigrations()
+  .then(() => seedSuperAdmin()) // birinchi super admin
   .then(() => {
     startMetricsCollector(); // per-loyiha DB gauge yig'uvchi
     return app.listen({ port: cfg.GATEWAY_PORT, host: cfg.GATEWAY_HOST });

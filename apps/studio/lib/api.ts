@@ -21,16 +21,58 @@ export function isAuthed(): boolean {
   return !!getSession();
 }
 
-/** Parol bilan login -> sessiya token saqlanadi. */
-export async function login(password: string): Promise<void> {
+/** Email + parol bilan login -> sessiya token saqlanadi. */
+export async function login(email: string, password: string): Promise<void> {
   const res = await fetch(`${GATEWAY}/admin/login`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ password }),
+    body: JSON.stringify({ email, password }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error ?? "Login muvaffaqiyatsiz");
   setSession(data.token);
+}
+
+export interface Me {
+  email: string;
+  role: "super_admin" | "user";
+}
+export async function getMe(): Promise<Me> {
+  return jsonOrThrow(
+    await fetch(`${GATEWAY}/admin/me`, { headers: adminHeaders(), cache: "no-store" }),
+  );
+}
+
+// ── Platform foydalanuvchilari (super admin) ──
+export interface PlatformUser {
+  id: string;
+  email: string;
+  role: "super_admin" | "user";
+  created_at: string;
+}
+export async function listUsers(): Promise<PlatformUser[]> {
+  return jsonOrThrow(
+    await fetch(`${GATEWAY}/admin/users`, { headers: adminHeaders(), cache: "no-store" }),
+  );
+}
+export async function createUser(
+  email: string,
+  password: string,
+  role: "user" | "super_admin" = "user",
+): Promise<PlatformUser> {
+  return jsonOrThrow(
+    await fetch(`${GATEWAY}/admin/users`, {
+      method: "POST",
+      headers: adminHeaders({ "content-type": "application/json" }),
+      body: JSON.stringify({ email, password, role }),
+    }),
+  );
+}
+export async function deleteUser(id: string): Promise<void> {
+  await fetch(`${GATEWAY}/admin/users/${id}`, {
+    method: "DELETE",
+    headers: adminHeaders(),
+  });
 }
 
 export function logout(): void {

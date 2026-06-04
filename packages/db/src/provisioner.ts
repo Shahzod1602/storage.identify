@@ -41,6 +41,7 @@ interface CreateProjectInput {
   name: string;
   organizationId?: string;
   ownerEmail?: string;
+  ownerId?: string; // platform_users.id (loyiha egasi)
 }
 
 /**
@@ -82,8 +83,8 @@ export async function createProject(
       created_at: string;
     }[]
   >`
-    insert into projects (ref, organization_id, name, db_name, jwt_secret, status)
-    values (${ref}, ${organizationId}, ${input.name}, ${dbName}, ${encryptSecret(jwtSecret)}, 'provisioning')
+    insert into projects (ref, organization_id, name, db_name, jwt_secret, status, owner_id)
+    values (${ref}, ${organizationId}, ${input.name}, ${dbName}, ${encryptSecret(jwtSecret)}, 'provisioning', ${input.ownerId ?? null})
     returning id, ref, organization_id, name, db_name, created_at
   `;
 
@@ -119,6 +120,7 @@ export async function createProject(
     name: row!.name,
     dbName: row!.db_name,
     jwtSecret: jwtSecret, // xotirada plaintext; DB'da shifrlangan
+    ownerId: input.ownerId ?? null,
     createdAt: row!.created_at,
   };
 

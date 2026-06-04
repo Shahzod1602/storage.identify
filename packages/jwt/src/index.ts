@@ -72,33 +72,46 @@ export async function verifyJwt(
   }
 }
 
-// ── Platforma admin sessiya tokeni (dashboard login uchun) ──
-const PLATFORM_SCOPE = "platform_admin";
+// ── Platforma sessiya tokeni (dashboard login: super_admin | user) ──
+const PLATFORM_SCOPE = "platform";
 
-/** Dashboard login uchun platforma admin sessiya JWT imzolaydi. */
+export type PlatformRole = "super_admin" | "user";
+export interface PlatformClaims {
+  sub: string; // platform_users.id
+  role: PlatformRole;
+  email: string;
+}
+
+/** Dashboard login uchun platforma sessiya JWT imzolaydi. */
 export async function signPlatformToken(
   secret: string,
+  claims: PlatformClaims,
   expiresIn = "24h",
 ): Promise<string> {
-  return new SignJWT({ scope: PLATFORM_SCOPE })
+  return new SignJWT({ scope: PLATFORM_SCOPE, ...claims })
     .setProtectedHeader({ alg: ALG, typ: "JWT" })
     .setIssuedAt()
     .setExpirationTime(expiresIn)
     .sign(secretKey(secret));
 }
 
-/** Platforma admin sessiya tokenini tekshiradi. */
+/** Platforma sessiya tokenini tekshiradi; claims yoki null qaytaradi. */
 export async function verifyPlatformToken(
   secret: string,
   token: string,
-): Promise<boolean> {
+): Promise<PlatformClaims | null> {
   try {
     const { payload } = await jwtVerify(token, secretKey(secret), {
       algorithms: [ALG],
     });
-    return payload.scope === PLATFORM_SCOPE;
+    if (payload.scope !== PLATFORM_SCOPE) return null;
+    return {
+      sub: String(payload.sub),
+      role: payload.role === "super_admin" ? "super_admin" : "user",
+      email: String(payload.email ?? ""),
+    };
   } catch {
-    return false;
+    return null;
   }
 }
 

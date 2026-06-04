@@ -39,8 +39,10 @@ const envSchema = z.object({
     .default(DEV_PLATFORM_SECRET),
   // Storage (Phase 3) — fayllar saqlanadigan local katalog.
   STORAGE_DIR: z.string().default("./storage-data"),
-  // Admin endpointlar (dashboard) uchun token (Phase 5).
+  // Admin endpointlar (master kalit) + birinchi super admin seed.
   PLATFORM_ADMIN_TOKEN: z.string().default(DEV_ADMIN_TOKEN),
+  // Birinchi super admin (startup'da seed qilinadi; paroli = PLATFORM_ADMIN_TOKEN).
+  SUPER_ADMIN_EMAIL: z.string().default("admin@storagedb.local"),
   // CORS: vergul bilan ajratilgan domenlar; "*" = hammasi (faqat dev uchun).
   GATEWAY_CORS_ORIGINS: z.string().default("*"),
   // SQL statement timeout (ms) — og'ir so'rovlarni to'xtatadi.

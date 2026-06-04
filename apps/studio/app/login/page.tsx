@@ -3,21 +3,22 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Lock, Loader2 } from "lucide-react";
+import { Lock, Mail, Loader2 } from "lucide-react";
 import { login } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function submit() {
-    if (!password || busy) return;
+    if (!email || !password || busy) return;
     setBusy(true);
     setError(null);
     try {
-      await login(password);
+      await login(email, password);
       router.replace("/dashboard");
     } catch (e) {
       setError((e as Error).message);
@@ -40,16 +41,30 @@ export default function LoginPage() {
 
         <div className="card p-6">
           <h1 className="text-lg font-medium">Dashboard'ga kirish</h1>
-          <p className="mt-1 text-sm text-muted">Admin parolini kiriting</p>
+          <p className="mt-1 text-sm text-muted">Email va parolingizni kiriting</p>
 
           <div className="mt-5">
+            <label className="mb-1.5 flex items-center gap-1.5 text-xs text-faint">
+              <Mail size={12} /> Email
+            </label>
+            <input
+              className="input"
+              type="email"
+              autoFocus
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submit()}
+              placeholder="admin@storagedb.local"
+            />
+          </div>
+
+          <div className="mt-3">
             <label className="mb-1.5 flex items-center gap-1.5 text-xs text-faint">
               <Lock size={12} /> Parol
             </label>
             <input
               className="input"
               type="password"
-              autoFocus
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && submit()}
@@ -73,7 +88,8 @@ export default function LoginPage() {
         </div>
 
         <p className="mt-4 text-center text-xs text-faint">
-          Parol = server <code className="kbd">PLATFORM_ADMIN_TOKEN</code>
+          Super admin: <code className="kbd">SUPER_ADMIN_EMAIL</code> / parol ={" "}
+          <code className="kbd">PLATFORM_ADMIN_TOKEN</code>
         </p>
       </div>
     </div>
