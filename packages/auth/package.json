@@ -14,11 +14,14 @@
     "test": "node --test --import tsx ./src/*.test.ts"
   },
   "dependencies": {
+    "@storagedb/config": "workspace:*",
     "@storagedb/db": "workspace:*",
     "@storagedb/jwt": "workspace:*",
-    "@storagedb/types": "workspace:*"
+    "@storagedb/types": "workspace:*",
+    "nodemailer": "^6.9.16"
   },
   "devDependencies": {
+    "@types/nodemailer": "^6.4.17",
     "tsx": "^4.19.2"
   }
 }

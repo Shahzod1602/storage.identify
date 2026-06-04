@@ -39,7 +39,10 @@ const corsOrigin =
   cfg.GATEWAY_CORS_ORIGINS === "*"
     ? true
     : cfg.GATEWAY_CORS_ORIGINS.split(",").map((o) => o.trim());
-await app.register(cors, { origin: corsOrigin });
+await app.register(cors, {
+  origin: corsOrigin,
+  exposedHeaders: ["content-range"], // SDK pagination total'ni o'qiy olsin
+});
 
 // Xavfsizlik headerlari (API uchun CSP o'chirilgan).
 await app.register(helmet, { contentSecurityPolicy: false });

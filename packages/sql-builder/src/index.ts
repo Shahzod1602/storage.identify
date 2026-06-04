@@ -59,7 +59,13 @@ const COMPARE_OPS: Record<string, string> = {
   ilike: "ilike",
 };
 
-const RESERVED_PARAMS = new Set(["select", "order", "limit", "offset"]);
+const RESERVED_PARAMS = new Set([
+  "select",
+  "order",
+  "limit",
+  "offset",
+  "count",
+]);
 
 /** URL query obyektidan filtrlarni ajratadi (masalan ?id=eq.5&age=gt.18). */
 export function parseFilters(
@@ -104,37 +110,134 @@ function parseInList(value: string): string[] {
   return trimmed.split(",").map((s) => s.trim());
 }
 
-function buildWhere(filters: Filter[], p: Params): string {
+// URL filtr qiymatlari doim MATN. postgres.js ularni text deb bog'laydi.
+// Raqam/sana/uuid ustunlar uchun PARAMETRNI ustun tipiga cast qilamiz ($1::int8).
+// MUHIM: bool ustun uchun param'ni ::bool qilib BO'LMAYDI — postgres.js'ning bool
+// serializer'i matn "true"ni `=== true` deb tekshirib false yuboradi. Shuning uchun
+// bool (va matn pattern) uchun USTUNNI text'ga cast qilamiz.
+function isBoolType(type?: string): boolean {
+  return type === "bool" || type === "boolean";
+}
+function castParam(placeholder: string, type?: string): string {
+  if (type && !isBoolType(type) && /^[a-z0-9_]+$/.test(type)) {
+    return `${placeholder}::${type}`;
+  }
+  return placeholder;
+}
+
+function buildWhere(
+  filters: Filter[],
+  p: Params,
+  columnTypes: Record<string, string> = {},
+): string {
   if (filters.length === 0) return "";
   const clauses = filters.map((f) => {
-    const col = quoteIdent(f.column);
+    const rawCol = quoteIdent(f.column);
+    const type = columnTypes[f.column];
+    const bool = isBoolType(type);
+    // bool ustun -> solishtirish uchun ustunni text'ga aylantiramiz.
+    const col = bool ? `${rawCol}::text` : rawCol;
 
     if (f.op === "is") {
       const v = f.value.toLowerCase();
-      if (v === "null") return `${col} is null`;
-      if (v === "not.null" || v === "notnull") return `${col} is not null`;
-      if (v === "true") return `${col} is true`;
-      if (v === "false") return `${col} is false`;
+      if (v === "null") return `${rawCol} is null`;
+      if (v === "not.null" || v === "notnull") return `${rawCol} is not null`;
+      if (v === "true") return `${rawCol} is true`;
+      if (v === "false") return `${rawCol} is false`;
       throw new QueryError(`'is' uchun yaroqsiz qiymat: ${f.value}`);
     }
 
     if (f.op === "in") {
       const items = parseInList(f.value);
       if (items.length === 0) return "false";
-      const placeholders = items.map((it) => p.add(it)).join(", ");
+      const placeholders = items
+        .map((it) => (bool ? p.add(it) : castParam(p.add(it), type)))
+        .join(", ");
       return `${col} in (${placeholders})`;
     }
 
     const sqlOp = COMPARE_OPS[f.op];
     if (!sqlOp) throw new QueryError(`Noma'lum operator: '${f.op}'`);
 
-    let val = f.value;
     if (f.op === "like" || f.op === "ilike") {
-      val = val.replace(/\*/g, "%"); // PostgREST uslubi: * -> %
+      const val = f.value.replace(/\*/g, "%"); // PostgREST: * -> %
+      return `${rawCol}::text ${sqlOp} ${p.add(val)}`;
     }
-    return `${col} ${sqlOp} ${p.add(val)}`;
+    // bool -> col allaqachon ::text; aks holda param'ni tipga cast qilamiz.
+    return bool
+      ? `${col} ${sqlOp} ${p.add(f.value)}`
+      : `${rawCol} ${sqlOp} ${castParam(p.add(f.value), type)}`;
   });
   return clauses.join(" and ");
+}
+
+// ── Embedded resurslar (PostgREST FK expansion: select=*,rel(*)) ──
+export interface EmbedSpec {
+  name: string; // bog'liq jadval nomi (yoki alias)
+  select: string; // ichki ustunlar ("*" yoki "a,b")
+}
+export interface ResolvedEmbed extends EmbedSpec {
+  baseTable: string;
+  relTable: string;
+  baseCol: string; // base jadvaldagi join ustuni
+  relCol: string; // bog'liq jadvaldagi join ustuni
+  kind: "one" | "many";
+}
+
+/** Yuqori darajadagi vergullarni qavslarni hurmat qilib bo'ladi. */
+function splitTopLevel(s: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let cur = "";
+  for (const ch of s) {
+    if (ch === "(") depth++;
+    else if (ch === ")") depth--;
+    if (ch === "," && depth === 0) {
+      out.push(cur);
+      cur = "";
+    } else cur += ch;
+  }
+  if (cur.trim()) out.push(cur);
+  return out.map((x) => x.trim()).filter(Boolean);
+}
+
+/** select=*,author(name) ni skalyar ustunlar + embedlarga ajratadi. */
+export function parseSelectWithEmbeds(select: string | undefined): {
+  columns: string[];
+  embeds: EmbedSpec[];
+} {
+  if (!select || select.trim() === "" || select.trim() === "*") {
+    return { columns: ["*"], embeds: [] };
+  }
+  const columns: string[] = [];
+  const embeds: EmbedSpec[] = [];
+  for (const part of splitTopLevel(select)) {
+    const m = part.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*\(([\s\S]*)\)$/);
+    if (m) embeds.push({ name: m[1]!, select: m[2]!.trim() || "*" });
+    else columns.push(part);
+  }
+  if (columns.length === 0) columns.push("*");
+  return { columns, embeds };
+}
+
+function embedColumnSql(opts: SelectOpts, e: ResolvedEmbed): string {
+  const relCols =
+    e.select.trim() === "*"
+      ? "*"
+      : e.select
+          .split(",")
+          .map((c) => quoteIdent(c.trim()))
+          .join(", ");
+  const schema = quoteIdent(opts.schema);
+  const rel = quoteIdent(e.relTable);
+  const baseRef = `${quoteIdent(opts.table)}.${quoteIdent(e.baseCol)}`;
+  const where = `r.${quoteIdent(e.relCol)} = ${baseRef}`;
+  const inner = `select ${relCols} from ${schema}.${rel} r where ${where}`;
+  const sub =
+    e.kind === "one"
+      ? `(select to_jsonb(__e) from (${inner} limit 1) __e)`
+      : `(select coalesce(json_agg(__e), '[]'::json) from (${inner}) __e)`;
+  return `${sub} as ${quoteIdent(e.name)}`;
 }
 
 export interface SelectOpts {
@@ -145,21 +248,22 @@ export interface SelectOpts {
   order: OrderTerm[];
   limit?: number;
   offset?: number;
+  embeds?: ResolvedEmbed[];
+  columnTypes?: Record<string, string>;
 }
 
 export function buildSelect(opts: SelectOpts): BuiltQuery {
   const p = new Params();
-  const cols =
+  const colParts: string[] =
     !opts.select || opts.select.trim() === "*"
-      ? "*"
-      : opts.select
-          .split(",")
-          .map((c) => quoteIdent(c.trim()))
-          .join(", ");
+      ? ["*"]
+      : opts.select.split(",").map((c) => quoteIdent(c.trim()));
+  for (const e of opts.embeds ?? []) colParts.push(embedColumnSql(opts, e));
+  const cols = colParts.join(", ");
 
   let text = `select ${cols} from ${quoteIdent(opts.schema)}.${quoteIdent(opts.table)}`;
 
-  const where = buildWhere(opts.filters, p);
+  const where = buildWhere(opts.filters, p, opts.columnTypes);
   if (where) text += ` where ${where}`;
 
   if (opts.order.length > 0) {
@@ -172,6 +276,20 @@ export function buildSelect(opts: SelectOpts): BuiltQuery {
   if (opts.limit != null) text += ` limit ${p.add(opts.limit)}`;
   if (opts.offset != null) text += ` offset ${p.add(opts.offset)}`;
 
+  return { text, params: p.values };
+}
+
+/** Filtrlarga mos qatorlar sonini hisoblaydi (count=exact uchun). */
+export function buildCount(opts: {
+  schema: string;
+  table: string;
+  filters: Filter[];
+  columnTypes?: Record<string, string>;
+}): BuiltQuery {
+  const p = new Params();
+  let text = `select count(*)::bigint as count from ${quoteIdent(opts.schema)}.${quoteIdent(opts.table)}`;
+  const where = buildWhere(opts.filters, p, opts.columnTypes);
+  if (where) text += ` where ${where}`;
   return { text, params: p.values };
 }
 
@@ -204,6 +322,7 @@ export interface UpdateOpts {
   set: Record<string, unknown>;
   filters: Filter[];
   returning?: boolean;
+  columnTypes?: Record<string, string>;
 }
 
 export function buildUpdate(opts: UpdateOpts): BuiltQuery {
@@ -215,7 +334,7 @@ export function buildUpdate(opts: UpdateOpts): BuiltQuery {
     .join(", ");
 
   let text = `update ${quoteIdent(opts.schema)}.${quoteIdent(opts.table)} set ${setSql}`;
-  const where = buildWhere(opts.filters, p);
+  const where = buildWhere(opts.filters, p, opts.columnTypes);
   if (where) text += ` where ${where}`;
   if (opts.returning) text += " returning *";
   return { text, params: p.values };
@@ -226,12 +345,13 @@ export interface DeleteOpts {
   table: string;
   filters: Filter[];
   returning?: boolean;
+  columnTypes?: Record<string, string>;
 }
 
 export function buildDelete(opts: DeleteOpts): BuiltQuery {
   const p = new Params();
   let text = `delete from ${quoteIdent(opts.schema)}.${quoteIdent(opts.table)}`;
-  const where = buildWhere(opts.filters, p);
+  const where = buildWhere(opts.filters, p, opts.columnTypes);
   if (where) text += ` where ${where}`;
   if (opts.returning) text += " returning *";
   return { text, params: p.values };

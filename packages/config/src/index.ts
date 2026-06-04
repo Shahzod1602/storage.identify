@@ -8,6 +8,17 @@ loadDotenv();
 export const DEV_PLATFORM_SECRET = "dev-only-change-me-please-32bytes-min";
 export const DEV_ADMIN_TOKEN = "dev-admin-token-change-me";
 
+// To'g'ri env boolean parser ("false"/"0"/"no"/"off" -> false).
+// (z.coerce.boolean() har qanday bo'sh bo'lmagan matnni true qiladi — xato.)
+function envBool(def: boolean) {
+  return z.preprocess((v) => {
+    if (v === undefined || v === null) return def;
+    if (typeof v === "boolean") return v;
+    const s = String(v).toLowerCase().trim();
+    return !(s === "false" || s === "0" || s === "no" || s === "off" || s === "");
+  }, z.boolean());
+}
+
 const envSchema = z.object({
   NODE_ENV: z
     .enum(["development", "production", "test"])
@@ -34,6 +45,17 @@ const envSchema = z.object({
   GATEWAY_CORS_ORIGINS: z.string().default("*"),
   // SQL statement timeout (ms) — og'ir so'rovlarni to'xtatadi.
   STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
+  // ── Email / SMTP (Auth: tasdiqlash + parol tiklash) ──
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_SECURE: envBool(false),
+  SMTP_FROM: z.string().default("storagedb <no-reply@localhost>"),
+  // Email havolalaridagi bazaviy URL (bo'sh bo'lsa so'rov host'idan olinadi).
+  AUTH_SITE_URL: z.string().default(""),
+  // true: signup avtomatik tasdiqlanadi (email kerak emas). false: tasdiqlash talab qilinadi.
+  AUTH_AUTOCONFIRM: envBool(true),
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace"])
     .default("info"),

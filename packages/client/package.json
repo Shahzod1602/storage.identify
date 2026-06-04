@@ -1,0 +1,16 @@
+{
+  "name": "@storagedb/client",
+  "version": "0.1.0",
+  "description": "storagedb uchun rasmiy JavaScript/TypeScript client (supabase-js kabi)",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc"
+  },
+  "files": ["dist", "src"]
+}

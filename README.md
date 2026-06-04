@@ -90,6 +90,43 @@ curl -X POST "http://localhost:8000/v1/<REF>/rest/v1/<TABLE>" \
 > shuning uchun Postgres RLS siyosatlari va `auth.uid()`/`auth.role()` ishlaydi.
 > `service_role` RLS'ni chetlab o'tadi (BYPASSRLS).
 
+## Client SDK (`@storagedb/client`) — supabase-js kabi
+
+```ts
+import { createClient } from "@storagedb/client";
+const db = createClient("http://localhost:8000/v1/<REF>", "<ANON_KEY>");
+
+// Database (filtrlar, count, embedded joins)
+const { data, count } = await db.from("todos").select("*", { count: "exact" })
+  .eq("done", false).order("id").limit(20);
+await db.from("todos").insert({ title: "Salom" });
+await db.from("todos").update({ done: true }).eq("id", 1);
+
+// Auth (signUp keyin avtomatik authenticated)
+await db.auth.signUp({ email: "a@b.com", password: "123456" });
+await db.auth.signInWithPassword({ email: "a@b.com", password: "123456" });
+
+// RPC (Postgres funksiya)
+const { data: sum } = await db.rpc("qoshish", { a: 5, b: 7 });
+
+// Storage
+await db.storage.from("rasmlar").upload("a.png", file);
+
+// Realtime
+db.channel("todos").on("INSERT", (p) => console.log(p.record)).subscribe();
+```
+
+## REST qo'shimcha imkoniyatlar
+
+```bash
+# Embedded joins (FK): har kitob muallifi bilan
+curl ".../rest/v1/kitoblar?select=*,mualliflar(*)" -H "apikey: ..."
+# RPC: Postgres funksiya
+curl -X POST ".../rest/v1/rpc/qoshish" -d '{"a":5,"b":7}'
+# Count + pagination: Content-Range: 0-9/100
+curl -D - ".../rest/v1/items?limit=10&count=exact"
+```
+
 ## Auth, Storage, Realtime — qisqa namunalar
 
 ```bash
@@ -172,6 +209,7 @@ PG_BIN=/opt/homebrew/opt/postgresql@17/bin/ ./scripts/backup.sh   # platform + p
 
 ## Cheklovlar (kelajakda)
 
-- Realtime v1: per-row RLS broadcast'da qo'llanmaydi (faqat `realtime.enable` qilingan jadvallar).
-- REST: embedded join (FK orqali `select=*,boshqa(*)`) hali yo'q.
-- Auth: OAuth (Google/GitHub) va email (SMTP) keyingi bosqichда.
+- Auth: OAuth (Google/GitHub), MFA/2FA keyingi bosqichда (email/parol tiklash BOR).
+- Storage: S3/MinIO backend, resumable upload, rasm transform keyingi bosqichда (local disk BOR).
+- Realtime: Presence va Broadcast kanallar keyingi bosqichда (Postgres changes + RLS BOR).
+- Edge Functions (serverless) va pgvector (AI) hozircha yo'q.

@@ -1,10 +1,23 @@
 import { randomBytes } from "node:crypto";
 import { getProjectPool } from "@storagedb/db";
+import { getConfig } from "@storagedb/config";
 import { signJwt, verifyJwt } from "@storagedb/jwt";
 import type { Project } from "@storagedb/types";
 import { hashPassword, verifyPassword } from "./password.js";
+import {
+  sendMail,
+  smtpConfigured,
+  confirmEmailHtml,
+  recoveryEmailHtml,
+} from "./mailer.js";
 
 export { hashPassword, verifyPassword } from "./password.js";
+export { smtpConfigured } from "./mailer.js";
+
+export interface SignupResult {
+  user: AuthUser;
+  session: Session | null; // tasdiqlash kerak bo'lsa null
+}
 
 const ACCESS_TOKEN_TTL = "1h";
 
@@ -39,6 +52,9 @@ interface UserRow {
   email: string;
   encrypted_password: string | null;
   email_confirmed_at: string | null;
+  confirmation_token: string | null;
+  recovery_token: string | null;
+  recovery_sent_at: string | null;
   raw_user_meta_data: Record<string, unknown>;
   created_at: string;
 }
@@ -89,17 +105,25 @@ async function issueSession(
   };
 }
 
-/** Yangi foydalanuvchi ro'yxatdan o'tkazadi. */
+/**
+ * Yangi foydalanuvchi ro'yxatdan o'tkazadi.
+ * AUTH_AUTOCONFIRM=true -> darhol tasdiqlanadi va sessiya beriladi.
+ * Aks holda -> tasdiqlash emaili yuboriladi, sessiya null bo'ladi.
+ */
 export async function signup(
   project: Project,
   email: string,
   password: string,
   metadata: Record<string, unknown> = {},
-): Promise<Session> {
+  linkBase?: string,
+): Promise<SignupResult> {
   if (!email || !password || password.length < 6) {
     throw new AuthError(400, "email va kamida 6 belgili password kerak");
   }
+  const autoconfirm = getConfig().AUTH_AUTOCONFIRM;
   const encrypted = await hashPassword(password);
+  const token = randomBytes(32).toString("hex");
+
   return asService(project, async (tx) => {
     const existing = await tx<{ id: string }[]>`
       select id from auth.users where email = ${email.toLowerCase()}
@@ -108,11 +132,21 @@ export async function signup(
       throw new AuthError(409, "Bu email allaqachon ro'yxatdan o'tgan");
     }
     const [user] = await tx<UserRow[]>`
-      insert into auth.users (email, encrypted_password, raw_user_meta_data, email_confirmed_at)
-      values (${email.toLowerCase()}, ${encrypted}, ${tx.json(metadata as never)}, now())
+      insert into auth.users (email, encrypted_password, raw_user_meta_data, email_confirmed_at, confirmation_token)
+      values (
+        ${email.toLowerCase()}, ${encrypted}, ${tx.json(metadata as never)},
+        ${autoconfirm ? tx`now()` : null},
+        ${autoconfirm ? null : token}
+      )
       returning *
     `;
-    return issueSession(project, user!, tx);
+    if (autoconfirm) {
+      return { user: toUser(user!), session: await issueSession(project, user!, tx) };
+    }
+    // Tasdiqlash emaili
+    const link = `${linkBase ?? ""}/verify?token=${token}&type=signup`;
+    await sendMail(user!.email, "Email'ingizni tasdiqlang", confirmEmailHtml(link));
+    return { user: toUser(user!), session: null };
   });
 }
 
@@ -128,6 +162,9 @@ export async function login(
     `;
     if (!user || !(await verifyPassword(password, user.encrypted_password))) {
       throw new AuthError(400, "Email yoki parol noto'g'ri");
+    }
+    if (!user.email_confirmed_at) {
+      throw new AuthError(400, "Email hali tasdiqlanmagan");
     }
     return issueSession(project, user, tx);
   });
@@ -169,6 +206,78 @@ export async function getUser(
     `;
     if (!user) throw new AuthError(404, "Foydalanuvchi topilmadi");
     return toUser(user);
+  });
+}
+
+/** Email tasdiqlash tokenini tekshiradi va sessiya beradi. */
+export async function verifyEmail(
+  project: Project,
+  token: string,
+): Promise<Session> {
+  if (!token) throw new AuthError(400, "token kerak");
+  return asService(project, async (tx) => {
+    const [user] = await tx<UserRow[]>`
+      select * from auth.users where confirmation_token = ${token}
+    `;
+    if (!user) throw new AuthError(401, "Tasdiqlash tokeni yaroqsiz");
+    await tx`
+      update auth.users set email_confirmed_at = now(), confirmation_token = null, updated_at = now()
+      where id = ${user.id}
+    `;
+    return issueSession(
+      project,
+      { ...user, email_confirmed_at: new Date().toISOString() },
+      tx,
+    );
+  });
+}
+
+/** Parolni tiklash so'rovi — recovery_token yaratib email yuboradi (mavjudlikni oshkor qilmaydi). */
+export async function requestRecovery(
+  project: Project,
+  email: string,
+  linkBase?: string,
+): Promise<void> {
+  const token = randomBytes(32).toString("hex");
+  await asService(project, async (tx) => {
+    const [user] = await tx<UserRow[]>`
+      select * from auth.users where email = ${email.toLowerCase()}
+    `;
+    if (!user) return; // jim — email mavjudligini oshkor qilmaymiz
+    await tx`
+      update auth.users set recovery_token = ${token}, recovery_sent_at = now()
+      where id = ${user.id}
+    `;
+    const link = `${linkBase ?? ""}/verify?token=${token}&type=recovery`;
+    await sendMail(user.email, "Parolni tiklash", recoveryEmailHtml(link));
+  });
+}
+
+/** Recovery token bilan yangi parol o'rnatadi (1 soat amal qiladi). */
+export async function resetPassword(
+  project: Project,
+  token: string,
+  newPassword: string,
+): Promise<void> {
+  if (!token || !newPassword || newPassword.length < 6) {
+    throw new AuthError(400, "token va kamida 6 belgili parol kerak");
+  }
+  const encrypted = await hashPassword(newPassword);
+  await asService(project, async (tx) => {
+    const [user] = await tx<UserRow[]>`
+      select * from auth.users
+      where recovery_token = ${token}
+        and recovery_sent_at > now() - interval '1 hour'
+    `;
+    if (!user) throw new AuthError(401, "Tiklash tokeni yaroqsiz yoki muddati o'tgan");
+    await tx`
+      update auth.users
+      set encrypted_password = ${encrypted}, recovery_token = null,
+          email_confirmed_at = coalesce(email_confirmed_at, now()), updated_at = now()
+      where id = ${user.id}
+    `;
+    // Barcha eski sessiyalarni bekor qilamiz
+    await tx`update auth.refresh_tokens set revoked = true where user_id = ${user.id}`;
   });
 }
 

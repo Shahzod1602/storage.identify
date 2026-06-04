@@ -8,9 +8,16 @@ import {
   refresh,
   getUser,
   logout,
+  verifyEmail,
+  requestRecovery,
+  resetPassword,
   AuthError,
 } from "@storagedb/auth";
 import { GatewayError } from "./context.js";
+
+function authBase(req: FastifyRequest, ref: string): string {
+  return `${req.protocol}://${req.headers.host}/v1/${ref}/auth/v1`;
+}
 
 /** Loyihani topadi va apikey (anon/service) borligini tekshiradi. */
 async function gate(req: FastifyRequest, ref: string): Promise<Project> {
@@ -46,10 +53,50 @@ interface Credentials {
 export function registerAuthRoutes(app: FastifyInstance): void {
   // Ro'yxatdan o'tish
   app.post("/v1/:ref/auth/v1/signup", async (req, reply) => {
-    const project = await gate(req, (req.params as { ref: string }).ref);
+    const ref = (req.params as { ref: string }).ref;
+    const project = await gate(req, ref);
     const { email, password, data } = (req.body ?? {}) as Credentials;
-    const session = await signup(project, email ?? "", password ?? "", data ?? {});
-    return reply.code(200).send(session);
+    const result = await signup(
+      project,
+      email ?? "",
+      password ?? "",
+      data ?? {},
+      authBase(req, ref),
+    );
+    return reply.code(200).send(result);
+  });
+
+  // Email tasdiqlash / parol tiklash havolasi (email'dagi link)
+  app.get("/v1/:ref/auth/v1/verify", async (req, reply) => {
+    const ref = (req.params as { ref: string }).ref;
+    const project = await gate(req, ref);
+    const { token, type } = req.query as { token?: string; type?: string };
+    if (type === "recovery") {
+      // Tiklash: token'ni qaytaramiz (mijoz yangi parol bilan /reset chaqiradi)
+      return reply.send({ token, type, next: `POST ${authBase(req, ref)}/reset` });
+    }
+    const session = await verifyEmail(project, token ?? "");
+    return reply.send(session);
+  });
+
+  // Parolni tiklashni so'rash (email yuboriladi)
+  app.post("/v1/:ref/auth/v1/recover", async (req, reply) => {
+    const ref = (req.params as { ref: string }).ref;
+    const project = await gate(req, ref);
+    const { email } = (req.body ?? {}) as { email?: string };
+    await requestRecovery(project, email ?? "", authBase(req, ref));
+    return reply.send({ message: "Agar email mavjud bo'lsa, havola yuborildi" });
+  });
+
+  // Yangi parol o'rnatish (recovery token bilan)
+  app.post("/v1/:ref/auth/v1/reset", async (req, reply) => {
+    const project = await gate(req, (req.params as { ref: string }).ref);
+    const { token, password } = (req.body ?? {}) as {
+      token?: string;
+      password?: string;
+    };
+    await resetPassword(project, token ?? "", password ?? "");
+    return reply.send({ message: "Parol yangilandi" });
   });
 
   // Token olish: ?grant_type=password | refresh_token

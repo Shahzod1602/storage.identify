@@ -36,9 +36,27 @@ test("buildSelect: filtrlar parametrlanadi", () => {
   });
   assert.equal(
     q.text,
-    'select "id", "name" from "public"."users" where "age" > $1 and "name" ilike $2 order by "id" desc limit $3',
+    'select "id", "name" from "public"."users" where "age" > $1 and "name"::text ilike $2 order by "id" desc limit $3',
   );
   assert.deepEqual(q.params, ["18", "%john%", 10]);
+});
+
+test("buildSelect: columnTypes -> parametr ustun tipiga cast qilinadi", () => {
+  const q = buildSelect({
+    schema: "public",
+    table: "todos",
+    filters: [
+      { column: "done", op: "eq", value: "true" },
+      { column: "age", op: "gt", value: "18" },
+    ],
+    order: [],
+    columnTypes: { done: "bool", age: "int4" },
+  });
+  assert.equal(
+    q.text,
+    'select * from "public"."todos" where "done"::text = $1 and "age" > $2::int4',
+  );
+  assert.deepEqual(q.params, ["true", "18"]);
 });
 
 test("buildSelect: in va is operatorlari", () => {

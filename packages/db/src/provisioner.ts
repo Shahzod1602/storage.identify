@@ -198,6 +198,9 @@ create table if not exists auth.users (
   email              text unique not null,
   encrypted_password text,
   email_confirmed_at timestamptz,
+  confirmation_token text,
+  recovery_token     text,
+  recovery_sent_at   timestamptz,
   raw_user_meta_data jsonb not null default '{}',
   created_at         timestamptz not null default now(),
   updated_at         timestamptz not null default now()
