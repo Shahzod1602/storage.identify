@@ -7,6 +7,7 @@ const ALTERS = `
   alter table auth.users add column if not exists confirmation_token text;
   alter table auth.users add column if not exists recovery_token text;
   alter table auth.users add column if not exists recovery_sent_at timestamptz;
+  alter table auth.users add column if not exists banned_until timestamptz;
 `;
 
 const base = new URL(getConfig().PROJECTS_DATABASE_URL);

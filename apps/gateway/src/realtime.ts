@@ -16,6 +16,11 @@ type WsLike = WebSocketLike & {
 interface ClientMessage {
   type?: string;
   table?: string;
+  topic?: string;
+  event?: string;
+  payload?: unknown;
+  key?: string;
+  state?: unknown;
 }
 
 export async function registerRealtime(app: FastifyInstance): Promise<void> {
@@ -73,6 +78,24 @@ export async function registerRealtime(app: FastifyInstance): Promise<void> {
         } else if (msg.type === "unsubscribe" && msg.table) {
           hub.unsubscribe(ref, msg.table, socket);
           socket.send(JSON.stringify({ type: "unsubscribed", table: msg.table }));
+        } else if (msg.type === "join" && msg.topic) {
+          // Broadcast/Presence topic'ga qo'shilish
+          hub.joinTopic(ref, msg.topic, socket);
+          socket.send(JSON.stringify({ type: "joined", topic: msg.topic }));
+        } else if (msg.type === "leave" && msg.topic) {
+          hub.leaveTopic(ref, msg.topic, socket);
+        } else if (msg.type === "broadcast" && msg.topic) {
+          hub.sendBroadcast(ref, msg.topic, msg.event ?? "message", msg.payload, socket);
+        } else if (msg.type === "presence_track" && msg.topic) {
+          hub.trackPresence(
+            ref,
+            msg.topic,
+            socket,
+            msg.key ?? claims.sub ?? "anon",
+            msg.state ?? {},
+          );
+        } else if (msg.type === "presence_untrack" && msg.topic) {
+          hub.untrackPresence(ref, msg.topic, socket);
         }
       });
 

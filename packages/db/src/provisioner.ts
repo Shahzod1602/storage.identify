@@ -201,6 +201,7 @@ create table if not exists auth.users (
   confirmation_token text,
   recovery_token     text,
   recovery_sent_at   timestamptz,
+  banned_until       timestamptz,
   raw_user_meta_data jsonb not null default '{}',
   created_at         timestamptz not null default now(),
   updated_at         timestamptz not null default now()

@@ -8,6 +8,7 @@ import {
   buildDelete,
   parseFilters,
   parseOrder,
+  parseOr,
   parseSelectWithEmbeds,
   quoteIdent,
   type ResolvedEmbed,
@@ -195,6 +196,7 @@ export async function executeRest(
       // 3: metodga qarab so'rov.
       if (method === "GET") {
         const filters = parseFilters(input.query);
+        const orFilters = parseOr(input.query.or);
         const offset = clampInt(input.query.offset, undefined);
         const q = buildSelect({
           schema: SCHEMA,
@@ -206,6 +208,7 @@ export async function executeRest(
           offset,
           embeds: resolvedEmbeds,
           columnTypes,
+          orFilters,
         });
         const rows = (await tx.unsafe(q.text, q.params as never[])) as unknown[];
 
@@ -218,6 +221,7 @@ export async function executeRest(
             table: input.table,
             filters,
             columnTypes,
+            orFilters,
           });
           const r = (await tx.unsafe(c.text, c.params as never[])) as {
             count: string;

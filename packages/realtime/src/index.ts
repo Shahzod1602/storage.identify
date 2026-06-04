@@ -45,8 +45,133 @@ function quoteIdent(name: string): string {
  *     oladi (INSERT/UPDATE PK bo'yicha qayta tekshiriladi).
  * DELETE'da qator yo'q -> faqat primary key qaytariladi (Supabase default kabi).
  */
+interface PresenceEntry {
+  key: string;
+  state: unknown;
+}
+
 export class RealtimeHub {
   private listeners = new Map<string, ProjectListener>();
+  // Broadcast/Presence (DB'siz, in-memory relay) — bitta node uchun.
+  // ref -> topic -> sockets
+  private topics = new Map<string, Map<string, Set<WebSocketLike>>>();
+  // ref -> topic -> socket -> presence
+  private presence = new Map<
+    string,
+    Map<string, Map<WebSocketLike, PresenceEntry>>
+  >();
+
+  private topicSet(ref: string, topic: string): Set<WebSocketLike> {
+    let m = this.topics.get(ref);
+    if (!m) {
+      m = new Map();
+      this.topics.set(ref, m);
+    }
+    let s = m.get(topic);
+    if (!s) {
+      s = new Set();
+      m.set(topic, s);
+    }
+    return s;
+  }
+
+  private presenceFor(
+    ref: string,
+    topic: string,
+  ): Map<WebSocketLike, PresenceEntry> {
+    let m = this.presence.get(ref);
+    if (!m) {
+      m = new Map();
+      this.presence.set(ref, m);
+    }
+    let p = m.get(topic);
+    if (!p) {
+      p = new Map();
+      m.set(topic, p);
+    }
+    return p;
+  }
+
+  private send(socket: WebSocketLike, obj: unknown): void {
+    if (socket.readyState === OPEN) socket.send(JSON.stringify(obj));
+  }
+
+  /** Broadcast topic'ga qo'shilish. */
+  joinTopic(ref: string, topic: string, socket: WebSocketLike): void {
+    this.topicSet(ref, topic).add(socket);
+  }
+
+  leaveTopic(ref: string, topic: string, socket: WebSocketLike): void {
+    this.topics.get(ref)?.get(topic)?.delete(socket);
+    this.untrackPresence(ref, topic, socket);
+  }
+
+  /** Topic'dagi boshqa mijozlarga xabar uzatadi (DB'siz). */
+  sendBroadcast(
+    ref: string,
+    topic: string,
+    event: string,
+    payload: unknown,
+    from?: WebSocketLike,
+  ): void {
+    const msg = { type: "broadcast", topic, event, payload };
+    for (const s of this.topicSet(ref, topic)) {
+      if (s !== from) this.send(s, msg);
+    }
+  }
+
+  /** Mijoz presence holatini belgilaydi; join + sync tarqatadi. */
+  trackPresence(
+    ref: string,
+    topic: string,
+    socket: WebSocketLike,
+    key: string,
+    state: unknown,
+  ): void {
+    this.topicSet(ref, topic).add(socket);
+    this.presenceFor(ref, topic).set(socket, { key, state });
+    for (const s of this.topicSet(ref, topic)) {
+      if (s !== socket) this.send(s, { type: "presence_join", topic, key, state });
+    }
+    this.send(socket, {
+      type: "presence_sync",
+      topic,
+      state: this.presenceState(ref, topic),
+    });
+  }
+
+  untrackPresence(ref: string, topic: string, socket: WebSocketLike): void {
+    const pm = this.presence.get(ref)?.get(topic);
+    const entry = pm?.get(socket);
+    if (!entry) return;
+    pm!.delete(socket);
+    for (const s of this.topicSet(ref, topic)) {
+      this.send(s, { type: "presence_leave", topic, key: entry.key });
+    }
+  }
+
+  /** {key: [state,...]} ko'rinishidagi presence holati. */
+  presenceState(ref: string, topic: string): Record<string, unknown[]> {
+    const out: Record<string, unknown[]> = {};
+    const pm = this.presence.get(ref)?.get(topic);
+    if (pm) {
+      for (const { key, state } of pm.values()) {
+        (out[key] ??= []).push(state);
+      }
+    }
+    return out;
+  }
+
+  private cleanupBroadcast(ref: string, socket: WebSocketLike): void {
+    const topicMap = this.topics.get(ref);
+    if (!topicMap) return;
+    for (const [topic, set] of topicMap) {
+      if (set.has(socket)) {
+        this.untrackPresence(ref, topic, socket);
+        set.delete(socket);
+      }
+    }
+  }
 
   private get(project: Project): ProjectListener {
     let l = this.listeners.get(project.ref);
@@ -210,6 +335,7 @@ export class RealtimeHub {
   }
 
   removeSocket(ref: string, socket: WebSocketLike): void {
+    this.cleanupBroadcast(ref, socket);
     const l = this.listeners.get(ref);
     if (!l) return;
     for (const set of l.subscribers.values()) {

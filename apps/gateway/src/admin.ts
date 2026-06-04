@@ -6,9 +6,15 @@ import {
   createProject,
   getProjectPool,
 } from "@storagedb/db";
-import { generateProjectKeys } from "@storagedb/jwt";
+import { generateProjectKeys, verifyJwt } from "@storagedb/jwt";
 import { resolveContext, GatewayError } from "./context.js";
 import { metricsSummary } from "./metrics.js";
+import {
+  introspectSchema,
+  buildOpenApi,
+  generateTypes,
+  swaggerHtml,
+} from "./meta-spec.js";
 
 function requireAdmin(req: FastifyRequest): void {
   const token = req.headers["x-admin-token"];
@@ -66,6 +72,43 @@ export function registerAdminRoutes(app: FastifyInstance): void {
       service_key: keys.serviceKey,
       api_url: `/v1/${ref}`,
     });
+  });
+
+  // OpenAPI spec (apikey: header yoki ?apikey=)
+  app.get("/v1/:ref/openapi.json", async (req, reply) => {
+    const { ref } = req.params as { ref: string };
+    const project = await getProjectByRef(ref);
+    if (!project) throw new GatewayError(404, "Loyiha topilmadi");
+    const q = req.query as { apikey?: string };
+    const key = (req.headers["apikey"] as string) ?? q.apikey;
+    try {
+      await verifyJwt(project.jwtSecret, key ?? "");
+    } catch {
+      throw new GatewayError(401, "apikey kerak");
+    }
+    const tables = await introspectSchema(project);
+    const serverUrl = `${req.protocol}://${req.headers.host}/v1/${ref}/rest/v1`;
+    return reply.send(buildOpenApi(tables, ref, serverUrl));
+  });
+
+  // Swagger UI: /v1/:ref/docs?apikey=<anon>
+  app.get("/v1/:ref/docs", async (req, reply) => {
+    const { ref } = req.params as { ref: string };
+    const apikey = (req.query as { apikey?: string }).apikey ?? "";
+    const specUrl = `/v1/${ref}/openapi.json?apikey=${encodeURIComponent(apikey)}`;
+    return reply.header("content-type", "text/html").send(swaggerHtml(specUrl));
+  });
+
+  // Auto TypeScript tiplar (admin)
+  app.get("/admin/projects/:ref/types", async (req, reply) => {
+    requireAdmin(req);
+    const { ref } = req.params as { ref: string };
+    const project = await getProjectByRef(ref);
+    if (!project) throw new GatewayError(404, "Loyiha topilmadi");
+    const tables = await introspectSchema(project);
+    return reply
+      .header("content-type", "text/plain; charset=utf-8")
+      .send(generateTypes(tables));
   });
 
   // Meta SQL — ixtiyoriy SQL'ni service_role rolida bajaradi (DDL + query).

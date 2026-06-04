@@ -26,6 +26,7 @@ export class QueryBuilder<T = Record<string, unknown>>
   private body?: unknown;
   private preferParts: string[] = [];
   private returnSingle = false;
+  private orParam?: string;
 
   constructor(
     private ctx: ClientContext,
@@ -84,6 +85,27 @@ export class QueryBuilder<T = Record<string, unknown>>
     this.filters.push(`${encodeURIComponent(c)}=in.(${list})`);
     return this;
   }
+  /** Inkor: .not('age','eq',5) -> age != 5 */
+  not(c: string, op: string, v: unknown): this {
+    this.filters.push(`${encodeURIComponent(c)}=not.${op}.${encodeURIComponent(String(v))}`);
+    return this;
+  }
+  /** OR guruh: .or('age.gt.18,age.lt.5') */
+  or(conditions: string): this {
+    this.orParam = conditions;
+    return this;
+  }
+  /** Full-text search: .textSearch('body','olma', { type: 'websearch' }) */
+  textSearch(
+    c: string,
+    query: string,
+    opts?: { type?: "plain" | "phrase" | "websearch" },
+  ): this {
+    const t =
+      opts?.type === "websearch" ? "wfts" : opts?.type === "plain" ? "fts" : "plfts";
+    this.filters.push(`${encodeURIComponent(c)}=${t}.${encodeURIComponent(query)}`);
+    return this;
+  }
 
   // ── Tartib / sahifalash ──
   order(col: string, opts?: { ascending?: boolean }): this {
@@ -108,6 +130,7 @@ export class QueryBuilder<T = Record<string, unknown>>
   private buildUrl(): string {
     const qs: string[] = [`select=${encodeURIComponent(this.selectCols)}`];
     qs.push(...this.filters);
+    if (this.orParam) qs.push(`or=(${encodeURIComponent(this.orParam)})`);
     if (this.orderParts.length) qs.push(`order=${this.orderParts.join(",")}`);
     if (this.limitVal != null) qs.push(`limit=${this.limitVal}`);
     if (this.offsetVal != null) qs.push(`offset=${this.offsetVal}`);

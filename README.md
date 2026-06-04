@@ -112,8 +112,31 @@ const { data: sum } = await db.rpc("qoshish", { a: 5, b: 7 });
 // Storage
 await db.storage.from("rasmlar").upload("a.png", file);
 
-// Realtime
-db.channel("todos").on("INSERT", (p) => console.log(p.record)).subscribe();
+// Realtime: postgres changes + broadcast + presence
+const ch = db.channel("room1")
+  .on("INSERT", (p) => console.log(p.record))       // DB o'zgarishlari
+  .onBroadcast("cursor", (m) => console.log(m.payload)) // mijoz↔mijoz
+  .onPresenceSync(() => ch.presenceState())          // kim onlayn
+  .subscribe();
+ch.send("cursor", { x: 10 });
+ch.track({ user: "ali" });
+
+// Admin (service_key bilan): foydalanuvchi boshqaruvi
+await db.auth.admin.listUsers();
+await db.auth.admin.updateUserById(id, { banned: true });
+await db.auth.admin.deleteUser(id);
+```
+
+## Qo'shimcha REST filtrlar + API docs
+
+```bash
+# JSON path:   ?meta->>author=eq.Ali
+# Full-text:   ?body=wfts.olma     (websearch)
+# Inkor:       ?views=not.gt.10
+# OR:          ?or=(views.gt.90,views.lt.10)
+# OpenAPI:     GET /v1/<REF>/openapi.json?apikey=<anon>
+# Swagger UI:  /v1/<REF>/docs?apikey=<anon>
+# TS types:    GET /admin/projects/<REF>/types  (x-admin-token)
 ```
 
 ## REST qo'shimcha imkoniyatlar
@@ -209,7 +232,7 @@ PG_BIN=/opt/homebrew/opt/postgresql@17/bin/ ./scripts/backup.sh   # platform + p
 
 ## Cheklovlar (kelajakda)
 
-- Auth: OAuth (Google/GitHub), MFA/2FA keyingi bosqichда (email/parol tiklash BOR).
-- Storage: S3/MinIO backend, resumable upload, rasm transform keyingi bosqichда (local disk BOR).
-- Realtime: Presence va Broadcast kanallar keyingi bosqichда (Postgres changes + RLS BOR).
+- Auth: OAuth (Google/GitHub), MFA/2FA keyingi bosqichда (email/parol tiklash + admin user mgmt BOR).
+- Storage: S3/MinIO backend, resumable upload, rasm transform keyingi bosqichда (local disk + signed URL BOR).
+- Realtime broadcast/presence bitta node uchun (ko'p node = Redis pub/sub kerak).
 - Edge Functions (serverless) va pgvector (AI) hozircha yo'q.

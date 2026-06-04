@@ -65,7 +65,28 @@ const RESERVED_PARAMS = new Set([
   "limit",
   "offset",
   "count",
+  "or",
+  "and",
 ]);
+
+// Full-text search operatorlari -> tsquery funksiyalari.
+const FTS_FUNCS: Record<string, string> = {
+  fts: "to_tsquery",
+  plfts: "plainto_tsquery",
+  wfts: "websearch_to_tsquery",
+};
+
+/** JSON path ustunini quradi: data->>name -> "data"->>'name'. */
+function buildJsonColumn(expr: string): string {
+  const parts = expr.split(/(->>|->)/); // separatorlarni saqlaydi
+  let sql = quoteIdent(parts[0]!.trim());
+  for (let i = 1; i < parts.length; i += 2) {
+    const op = parts[i];
+    const key = (parts[i + 1] ?? "").trim();
+    sql += `${op}'${key.replace(/'/g, "''")}'`;
+  }
+  return sql;
+}
 
 /** URL query obyektidan filtrlarni ajratadi (masalan ?id=eq.5&age=gt.18). */
 export function parseFilters(
@@ -125,50 +146,97 @@ function castParam(placeholder: string, type?: string): string {
   return placeholder;
 }
 
+/** Bitta filtr uchun SQL shart quradi (not. uchun rekursiv). */
+function buildClause(
+  f: Filter,
+  p: Params,
+  columnTypes: Record<string, string>,
+): string {
+  const isJson = f.column.includes("->");
+  const type = isJson ? undefined : columnTypes[f.column];
+  const bool = isBoolType(type);
+  const rawCol = isJson ? buildJsonColumn(f.column) : quoteIdent(f.column);
+  const col = bool ? `${rawCol}::text` : rawCol;
+
+  // not. inkor: not.eq.5 -> not (col = 5)
+  if (f.op === "not") {
+    const dot = f.value.indexOf(".");
+    if (dot === -1) throw new QueryError(`'not' formati: not.<op>.<qiymat>`);
+    const sub: Filter = {
+      column: f.column,
+      op: f.value.slice(0, dot),
+      value: f.value.slice(dot + 1),
+    };
+    return `not (${buildClause(sub, p, columnTypes)})`;
+  }
+
+  if (f.op === "is") {
+    const v = f.value.toLowerCase();
+    if (v === "null") return `${rawCol} is null`;
+    if (v === "not.null" || v === "notnull") return `${rawCol} is not null`;
+    if (v === "true") return `${rawCol} is true`;
+    if (v === "false") return `${rawCol} is false`;
+    throw new QueryError(`'is' uchun yaroqsiz qiymat: ${f.value}`);
+  }
+
+  // Full-text search: fts/plfts/wfts
+  if (FTS_FUNCS[f.op]) {
+    return `to_tsvector(${rawCol}::text) @@ ${FTS_FUNCS[f.op]}(${p.add(f.value)})`;
+  }
+
+  if (f.op === "in") {
+    const items = parseInList(f.value);
+    if (items.length === 0) return "false";
+    const placeholders = items
+      .map((it) => (bool ? p.add(it) : castParam(p.add(it), type)))
+      .join(", ");
+    return `${col} in (${placeholders})`;
+  }
+
+  const sqlOp = COMPARE_OPS[f.op];
+  if (!sqlOp) throw new QueryError(`Noma'lum operator: '${f.op}'`);
+
+  if (f.op === "like" || f.op === "ilike") {
+    const val = f.value.replace(/\*/g, "%"); // PostgREST: * -> %
+    return `${rawCol}::text ${sqlOp} ${p.add(val)}`;
+  }
+  return bool
+    ? `${col} ${sqlOp} ${p.add(f.value)}`
+    : `${rawCol} ${sqlOp} ${castParam(p.add(f.value), type)}`;
+}
+
 function buildWhere(
   filters: Filter[],
   p: Params,
   columnTypes: Record<string, string> = {},
+  orFilters?: Filter[],
 ): string {
-  if (filters.length === 0) return "";
-  const clauses = filters.map((f) => {
-    const rawCol = quoteIdent(f.column);
-    const type = columnTypes[f.column];
-    const bool = isBoolType(type);
-    // bool ustun -> solishtirish uchun ustunni text'ga aylantiramiz.
-    const col = bool ? `${rawCol}::text` : rawCol;
+  const parts = filters.map((f) => buildClause(f, p, columnTypes));
+  if (orFilters && orFilters.length > 0) {
+    parts.push(
+      `(${orFilters.map((f) => buildClause(f, p, columnTypes)).join(" or ")})`,
+    );
+  }
+  return parts.join(" and ");
+}
 
-    if (f.op === "is") {
-      const v = f.value.toLowerCase();
-      if (v === "null") return `${rawCol} is null`;
-      if (v === "not.null" || v === "notnull") return `${rawCol} is not null`;
-      if (v === "true") return `${rawCol} is true`;
-      if (v === "false") return `${rawCol} is false`;
-      throw new QueryError(`'is' uchun yaroqsiz qiymat: ${f.value}`);
+/** ?or=(age.gt.18,age.lt.5) -> OR guruh filtrlar. */
+export function parseOr(raw: string | string[] | undefined): Filter[] {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  if (!v) return [];
+  const inner = v.trim().replace(/^\(/, "").replace(/\)$/, "");
+  return splitTopLevel(inner).map((cond) => {
+    const a = cond.indexOf(".");
+    const b = cond.indexOf(".", a + 1);
+    if (a === -1 || b === -1) {
+      throw new QueryError(`or sharti formati: ustun.op.qiymat ('${cond}')`);
     }
-
-    if (f.op === "in") {
-      const items = parseInList(f.value);
-      if (items.length === 0) return "false";
-      const placeholders = items
-        .map((it) => (bool ? p.add(it) : castParam(p.add(it), type)))
-        .join(", ");
-      return `${col} in (${placeholders})`;
-    }
-
-    const sqlOp = COMPARE_OPS[f.op];
-    if (!sqlOp) throw new QueryError(`Noma'lum operator: '${f.op}'`);
-
-    if (f.op === "like" || f.op === "ilike") {
-      const val = f.value.replace(/\*/g, "%"); // PostgREST: * -> %
-      return `${rawCol}::text ${sqlOp} ${p.add(val)}`;
-    }
-    // bool -> col allaqachon ::text; aks holda param'ni tipga cast qilamiz.
-    return bool
-      ? `${col} ${sqlOp} ${p.add(f.value)}`
-      : `${rawCol} ${sqlOp} ${castParam(p.add(f.value), type)}`;
+    return {
+      column: cond.slice(0, a),
+      op: cond.slice(a + 1, b),
+      value: cond.slice(b + 1),
+    };
   });
-  return clauses.join(" and ");
 }
 
 // ── Embedded resurslar (PostgREST FK expansion: select=*,rel(*)) ──
@@ -250,6 +318,7 @@ export interface SelectOpts {
   offset?: number;
   embeds?: ResolvedEmbed[];
   columnTypes?: Record<string, string>;
+  orFilters?: Filter[];
 }
 
 export function buildSelect(opts: SelectOpts): BuiltQuery {
@@ -263,7 +332,7 @@ export function buildSelect(opts: SelectOpts): BuiltQuery {
 
   let text = `select ${cols} from ${quoteIdent(opts.schema)}.${quoteIdent(opts.table)}`;
 
-  const where = buildWhere(opts.filters, p, opts.columnTypes);
+  const where = buildWhere(opts.filters, p, opts.columnTypes, opts.orFilters);
   if (where) text += ` where ${where}`;
 
   if (opts.order.length > 0) {
@@ -285,10 +354,11 @@ export function buildCount(opts: {
   table: string;
   filters: Filter[];
   columnTypes?: Record<string, string>;
+  orFilters?: Filter[];
 }): BuiltQuery {
   const p = new Params();
   let text = `select count(*)::bigint as count from ${quoteIdent(opts.schema)}.${quoteIdent(opts.table)}`;
-  const where = buildWhere(opts.filters, p, opts.columnTypes);
+  const where = buildWhere(opts.filters, p, opts.columnTypes, opts.orFilters);
   if (where) text += ` where ${where}`;
   return { text, params: p.values };
 }

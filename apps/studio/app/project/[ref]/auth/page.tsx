@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { UserPlus, RefreshCw, Mail, X, Check } from "lucide-react";
+import { UserPlus, RefreshCw, Mail, X, Check, Ban, Trash2 } from "lucide-react";
 import { useProject } from "@/components/project-context";
 import { metaQuery, GATEWAY } from "@/lib/api";
 
@@ -9,6 +9,7 @@ interface AuthUser {
   id: string;
   email: string;
   email_confirmed_at: string | null;
+  banned_until: string | null;
   created_at: string;
 }
 
@@ -26,7 +27,7 @@ export default function AuthPage() {
       const r = await metaQuery(
         ref,
         keys.service_key,
-        `select id, email, email_confirmed_at, created_at
+        `select id, email, email_confirmed_at, banned_until, created_at
          from auth.users order by created_at desc limit 200`,
       );
       setUsers(r as unknown as AuthUser[]);
@@ -40,11 +41,16 @@ export default function AuthPage() {
     void reload();
   }, [ref, keys]);
 
+  function adminUrl(id = ""): string {
+    return `${GATEWAY}/v1/${ref}/auth/v1/admin/users${id ? "/" + id : ""}`;
+  }
+
   async function addUser() {
     if (!keys || !email || !password) return;
-    const res = await fetch(`${GATEWAY}/v1/${ref}/auth/v1/signup`, {
+    // Admin yaratish -> avtomatik tasdiqlangan
+    const res = await fetch(adminUrl(), {
       method: "POST",
-      headers: { apikey: keys.anon_key, "content-type": "application/json" },
+      headers: { apikey: keys.service_key, "content-type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
     if (!res.ok) {
@@ -54,6 +60,25 @@ export default function AuthPage() {
     setEmail("");
     setPassword("");
     setAdding(false);
+    await reload();
+  }
+
+  async function toggleBan(u: AuthUser) {
+    if (!keys) return;
+    await fetch(adminUrl(u.id), {
+      method: "PUT",
+      headers: { apikey: keys.service_key, "content-type": "application/json" },
+      body: JSON.stringify({ banned: !u.banned_until }),
+    });
+    await reload();
+  }
+
+  async function deleteUser(u: AuthUser) {
+    if (!keys || !confirm(`${u.email} o'chirilsinmi?`)) return;
+    await fetch(adminUrl(u.id), {
+      method: "DELETE",
+      headers: { apikey: keys.service_key },
+    });
     await reload();
   }
 
@@ -119,15 +144,16 @@ export default function AuthPage() {
               <tr>
                 <th>UID</th>
                 <th>Email</th>
-                <th>Provider</th>
+                <th>Holat</th>
                 <th>Tasdiqlangan</th>
                 <th>Yaratilgan</th>
+                <th>Amallar</th>
               </tr>
             </thead>
             <tbody>
               {users.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-10 text-center text-faint">
+                  <td colSpan={6} className="py-10 text-center text-faint">
                     Foydalanuvchi yo'q
                   </td>
                 </tr>
@@ -142,7 +168,13 @@ export default function AuthPage() {
                     </span>
                   </td>
                   <td>
-                    <span className="badge">email</span>
+                    {u.banned_until ? (
+                      <span className="badge border-red-500/40 text-red-400">
+                        bloklangan
+                      </span>
+                    ) : (
+                      <span className="badge badge-brand">faol</span>
+                    )}
                   </td>
                   <td>
                     {u.email_confirmed_at ? (
@@ -153,6 +185,24 @@ export default function AuthPage() {
                   </td>
                   <td className="text-muted">
                     {new Date(u.created_at).toLocaleDateString()}
+                  </td>
+                  <td>
+                    <div className="flex gap-1">
+                      <button
+                        className="btn-ghost btn-xs"
+                        title={u.banned_until ? "Blokdan chiqarish" : "Bloklash"}
+                        onClick={() => toggleBan(u)}
+                      >
+                        <Ban size={13} className={u.banned_until ? "text-red-400" : ""} />
+                      </button>
+                      <button
+                        className="btn-ghost btn-xs"
+                        title="O'chirish"
+                        onClick={() => deleteUser(u)}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

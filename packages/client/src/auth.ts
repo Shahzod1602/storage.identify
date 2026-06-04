@@ -110,4 +110,40 @@ export class AuthClient {
       return { data: null, error: { message: (e as Error).message } };
     }
   }
+
+  /** Admin amallar — client service_key bilan yaratilgan bo'lishi kerak. */
+  readonly admin = {
+    listUsers: async (): Promise<Result<AuthUser[]>> => this.adminReq("GET", "/admin/users"),
+    createUser: async (u: {
+      email: string;
+      password: string;
+      user_metadata?: Record<string, unknown>;
+    }): Promise<Result<AuthUser>> => this.adminReq("POST", "/admin/users", u),
+    updateUserById: async (
+      id: string,
+      patch: { password?: string; banned?: boolean; user_metadata?: Record<string, unknown> },
+    ): Promise<Result<AuthUser>> => this.adminReq("PUT", `/admin/users/${id}`, patch),
+    deleteUser: async (id: string): Promise<Result<null>> =>
+      this.adminReq("DELETE", `/admin/users/${id}`),
+  };
+
+  private async adminReq(
+    method: string,
+    path: string,
+    body?: unknown,
+  ): Promise<Result<never>> {
+    try {
+      const res = await fetch(`${this.base()}${path}`, {
+        method,
+        headers: this.ctx.headers({ "content-type": "application/json" }),
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      });
+      if (res.status === 204) return { data: null, error: null };
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error ?? `HTTP ${res.status}`);
+      return { data: json, error: null };
+    } catch (e) {
+      return { data: null, error: { message: (e as Error).message } };
+    }
+  }
 }

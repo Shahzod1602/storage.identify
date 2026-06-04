@@ -11,12 +11,34 @@ import {
   verifyEmail,
   requestRecovery,
   resetPassword,
+  adminListUsers,
+  adminCreateUser,
+  adminUpdateUser,
+  adminDeleteUser,
   AuthError,
 } from "@storagedb/auth";
 import { GatewayError } from "./context.js";
 
 function authBase(req: FastifyRequest, ref: string): string {
   return `${req.protocol}://${req.headers.host}/v1/${ref}/auth/v1`;
+}
+
+/** apikey service_role bo'lishini talab qiladi (admin endpointlar uchun). */
+async function gateAdmin(req: FastifyRequest, ref: string): Promise<Project> {
+  const project = await getProjectByRef(ref);
+  if (!project) throw new GatewayError(404, `Loyiha topilmadi: ${ref}`);
+  const apikey = req.headers["apikey"];
+  const key = Array.isArray(apikey) ? apikey[0] : apikey;
+  try {
+    const claims = await verifyJwt(project.jwtSecret, key ?? "");
+    if (claims.role !== "service_role") {
+      throw new GatewayError(403, "service_role kerak");
+    }
+  } catch (e) {
+    if (e instanceof GatewayError) throw e;
+    throw new GatewayError(401, "service_role apikey kerak");
+  }
+  return project;
 }
 
 /** Loyihani topadi va apikey (anon/service) borligini tekshiradi. */
@@ -127,6 +149,51 @@ export function registerAuthRoutes(app: FastifyInstance): void {
   app.post("/v1/:ref/auth/v1/logout", async (req, reply) => {
     const project = await gate(req, (req.params as { ref: string }).ref);
     await logout(project, bearer(req));
+    return reply.code(204).send();
+  });
+
+  // ── Admin (service_role): foydalanuvchilarni boshqarish ──
+  app.get("/v1/:ref/auth/v1/admin/users", async (req, reply) => {
+    const project = await gateAdmin(req, (req.params as { ref: string }).ref);
+    const q = req.query as { limit?: string; offset?: string };
+    return reply.send(
+      await adminListUsers(project, {
+        limit: q.limit ? Number(q.limit) : undefined,
+        offset: q.offset ? Number(q.offset) : undefined,
+      }),
+    );
+  });
+
+  app.post("/v1/:ref/auth/v1/admin/users", async (req, reply) => {
+    const project = await gateAdmin(req, (req.params as { ref: string }).ref);
+    const b = (req.body ?? {}) as {
+      email?: string;
+      password?: string;
+      user_metadata?: Record<string, unknown>;
+    };
+    const user = await adminCreateUser(project, {
+      email: b.email ?? "",
+      password: b.password ?? "",
+      user_metadata: b.user_metadata,
+    });
+    return reply.code(201).send(user);
+  });
+
+  app.put("/v1/:ref/auth/v1/admin/users/:id", async (req, reply) => {
+    const { ref, id } = req.params as { ref: string; id: string };
+    const project = await gateAdmin(req, ref);
+    const patch = (req.body ?? {}) as {
+      password?: string;
+      banned?: boolean;
+      user_metadata?: Record<string, unknown>;
+    };
+    return reply.send(await adminUpdateUser(project, id, patch));
+  });
+
+  app.delete("/v1/:ref/auth/v1/admin/users/:id", async (req, reply) => {
+    const { ref, id } = req.params as { ref: string; id: string };
+    const project = await gateAdmin(req, ref);
+    await adminDeleteUser(project, id);
     return reply.code(204).send();
   });
 }

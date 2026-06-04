@@ -55,6 +55,7 @@ interface UserRow {
   confirmation_token: string | null;
   recovery_token: string | null;
   recovery_sent_at: string | null;
+  banned_until: string | null;
   raw_user_meta_data: Record<string, unknown>;
   created_at: string;
 }
@@ -166,7 +167,85 @@ export async function login(
     if (!user.email_confirmed_at) {
       throw new AuthError(400, "Email hali tasdiqlanmagan");
     }
+    if (user.banned_until && new Date(user.banned_until) > new Date()) {
+      throw new AuthError(403, "Foydalanuvchi bloklangan");
+    }
     return issueSession(project, user, tx);
+  });
+}
+
+// ── Admin (service_role) foydalanuvchi boshqaruvi ──
+export interface AdminUserView extends AuthUser {
+  banned_until: string | null;
+}
+function toAdminUser(r: UserRow): AdminUserView {
+  return { ...toUser(r), banned_until: r.banned_until };
+}
+
+export async function adminListUsers(
+  project: Project,
+  opts: { limit?: number; offset?: number } = {},
+): Promise<AdminUserView[]> {
+  return asService(project, async (tx) => {
+    const rows = await tx<UserRow[]>`
+      select * from auth.users order by created_at desc
+      limit ${opts.limit ?? 100} offset ${opts.offset ?? 0}
+    `;
+    return rows.map(toAdminUser);
+  });
+}
+
+export async function adminCreateUser(
+  project: Project,
+  input: { email: string; password: string; user_metadata?: Record<string, unknown> },
+): Promise<AdminUserView> {
+  if (!input.email || !input.password || input.password.length < 6) {
+    throw new AuthError(400, "email va kamida 6 belgili password kerak");
+  }
+  const encrypted = await hashPassword(input.password);
+  return asService(project, async (tx) => {
+    const [user] = await tx<UserRow[]>`
+      insert into auth.users (email, encrypted_password, raw_user_meta_data, email_confirmed_at)
+      values (${input.email.toLowerCase()}, ${encrypted}, ${tx.json((input.user_metadata ?? {}) as never)}, now())
+      returning *
+    `;
+    return toAdminUser(user!);
+  });
+}
+
+export async function adminUpdateUser(
+  project: Project,
+  id: string,
+  patch: { password?: string; banned?: boolean; user_metadata?: Record<string, unknown> },
+): Promise<AdminUserView> {
+  return asService(project, async (tx) => {
+    if (patch.password) {
+      const enc = await hashPassword(patch.password);
+      await tx`update auth.users set encrypted_password = ${enc}, updated_at = now() where id = ${id}`;
+    }
+    if (patch.banned !== undefined) {
+      if (patch.banned) {
+        await tx`update auth.users set banned_until = now() + interval '100 years', updated_at = now() where id = ${id}`;
+        await tx`update auth.refresh_tokens set revoked = true where user_id = ${id}`;
+      } else {
+        await tx`update auth.users set banned_until = null, updated_at = now() where id = ${id}`;
+      }
+    }
+    if (patch.user_metadata) {
+      await tx`update auth.users set raw_user_meta_data = ${tx.json(patch.user_metadata as never)}, updated_at = now() where id = ${id}`;
+    }
+    const [user] = await tx<UserRow[]>`select * from auth.users where id = ${id}`;
+    if (!user) throw new AuthError(404, "Foydalanuvchi topilmadi");
+    return toAdminUser(user);
+  });
+}
+
+export async function adminDeleteUser(
+  project: Project,
+  id: string,
+): Promise<void> {
+  await asService(project, async (tx) => {
+    await tx`delete from auth.users where id = ${id}`;
   });
 }
 
