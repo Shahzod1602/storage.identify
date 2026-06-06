@@ -2,15 +2,19 @@ import { ClientContext } from "./context.js";
 import { QueryBuilder } from "./query.js";
 import { AuthClient } from "./auth.js";
 import { StorageClient } from "./storage.js";
+import { MetaClient } from "./meta.js";
 import { RealtimeChannel } from "./realtime.js";
 
 export type { QueryResult } from "./query.js";
 export type { Session, AuthUser } from "./auth.js";
 export type { ChangePayload, ChangeEvent } from "./realtime.js";
+export type { MetaResult } from "./meta.js";
 
 export class StorageDbClient {
   readonly auth: AuthClient;
   readonly storage: StorageClient;
+  /** Management/meta: ixtiyoriy SQL va DDL — faqat service_key bilan. */
+  readonly meta: MetaClient;
   private ctx: ClientContext;
 
   constructor(apiUrl: string, apiKey: string) {
@@ -18,6 +22,7 @@ export class StorageDbClient {
     this.ctx = new ClientContext(apiUrl.replace(/\/$/, ""), apiKey);
     this.auth = new AuthClient(this.ctx);
     this.storage = new StorageClient(this.ctx);
+    this.meta = new MetaClient(this.ctx);
   }
 
   /** Jadval bilan ishlash: db.from('todos').select('*').eq(...) */

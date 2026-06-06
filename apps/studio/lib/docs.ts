@@ -1175,6 +1175,67 @@ export const DOCS: DocPage[] = [
         ]
       }
     ]
+  },
+  {
+    "slug": "meta",
+    "title": "Meta / DDL (jadval yaratish)",
+    "description": "Jadval yaratish va boshqa DDL (CREATE/ALTER/DROP) hamda ixtiyoriy SQL'ni API orqali bajarish. Bu management operatsiyasi — faqat service_key bilan ishlaydi, anon_key bilan emas.",
+    "sections": [
+      {
+        "heading": "Data-plane vs management",
+        "body": [
+          "storagedb'da `anon_key` va `service_key` — DATA uchun (REST `/rest/v1/...`): qator o'qish, qo'shish, yangilash. Lekin jadval YARATISH (DDL) — bu boshqa, kuchliroq operatsiya.",
+          "DDL uchun alohida endpoint bor: `POST /v1/<REF>/meta/query` — ixtiyoriy SQL bajaradi (CREATE TABLE, ALTER, CREATE FUNCTION, index, policy…).",
+          "MUHIM: bu endpoint **faqat `service_key`** bilan ishlaydi. `anon_key` bilan so'rov 403 qaytaradi (`meta/query uchun service_role kerak`) — ommaviy client jadvalni yaratib/o'zgartirib yubora olmasligi kerak. Shuning uchun `service_key`'ni faqat backend'da ishlating, brauzerga chiqarmang."
+        ]
+      },
+      {
+        "heading": "SDK: db.meta.query()",
+        "body": [
+          "`@storagedb/client` SDK'sida `db.meta.query(sql)` metodi mavjud. U `{ data, error }` qaytaradi: SELECT bo'lsa `data` — qatorlar massivi; DDL bo'lsa `data` — bo'sh massiv (`[]`).",
+          "Client'ni `service_key` bilan yarating (faqat server tomonda)."
+        ],
+        "examples": [
+          {
+            "title": "Jadval yaratish (DDL)",
+            "lang": "ts",
+            "code": "import { createClient } from '@storagedb/client';\n\n// faqat backend'da — service_key brauzerga chiqmasin\nconst db = createClient(\n  'https://storage.identify.uz/v1/<REF>',\n  process.env.SERVICE_KEY!\n);\n\nconst { error } = await db.meta.query(`\n  create table public.todos (\n    id bigint generated always as identity primary key,\n    title text not null,\n    done boolean default false,\n    created_at timestamptz default now()\n  )\n`);\n\nif (error) console.error('DDL xatosi:', error.message);\nelse console.log('Jadval yaratildi');"
+          },
+          {
+            "title": "SELECT — natija data'da",
+            "lang": "ts",
+            "code": "const { data, error } = await db.meta.query<{ count: number }>(\n  'select count(*)::int as count from public.todos'\n);\n\nif (!error) console.log('Qatorlar:', data?.[0]?.count);"
+          },
+          {
+            "title": "RLS bilan birga (tavsiya etiladi)",
+            "lang": "ts",
+            "code": "// Jadval yaratgandan keyin RLS yoqing va siyosat qo'shing\nawait db.meta.query(`\n  alter table public.todos enable row level security;\n  create policy \"own todos\" on public.todos\n    for all to authenticated\n    using (owner = auth.uid()) with check (owner = auth.uid());\n`);"
+          }
+        ]
+      },
+      {
+        "heading": "curl orqali",
+        "body": [
+          "SDK'siz, to'g'ridan-to'g'ri ham chaqirsa bo'ladi. Body `{ \"query\": \"<SQL>\" }`, header `apikey: <SERVICE_KEY>`. Javob: muvaffaqiyatda `{ \"rows\": [...] }`, xatoda `{ \"error\": \"...\" }` (HTTP 400)."
+        ],
+        "examples": [
+          {
+            "title": "curl: CREATE TABLE",
+            "lang": "bash",
+            "code": "curl -X POST https://storage.identify.uz/v1/<REF>/meta/query \\\n  -H \"apikey: <SERVICE_KEY>\" \\\n  -H \"content-type: application/json\" \\\n  -d '{\"query\":\"create table public.todos (id bigint generated always as identity primary key, title text not null)\"}'\n\n# Javob: {\"rows\":[]}"
+          }
+        ]
+      },
+      {
+        "heading": "Eslatmalar va cheklovlar",
+        "body": [
+          "— Avto-schema YO'Q: bo'lmagan jadvalga `insert` qilsangiz, u o'zi yaralmaydi (REST → 404). Postgres aniq `CREATE TABLE` talab qiladi.",
+          "— `anon_key` bilan ishlamaydi (403) — ataylab. Faqat `service_key`.",
+          "— So'rov tranzaksiyada `service_role` ostida va `STATEMENT_TIMEOUT_MS` (default 15s) bilan bajariladi.",
+          "— Dashboard'dagi SQL Editor va Table Editor ham aynan shu endpoint orqali ishlaydi."
+        ]
+      }
+    ]
   }
 ];
 
@@ -1206,6 +1267,10 @@ export const DOC_NAV: { slug: string; title: string }[] = [
   {
     "slug": "sdk",
     "title": "Client SDK (@storagedb/client)"
+  },
+  {
+    "slug": "meta",
+    "title": "Meta / DDL (jadval yaratish)"
   }
 ];
 
