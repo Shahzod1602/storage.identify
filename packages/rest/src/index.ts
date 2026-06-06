@@ -62,6 +62,38 @@ async function getColumnTypes(
   return map;
 }
 
+// Primary key ustunlari keshlanadi: project.ref:table -> [col,...]
+const pkCache = new Map<string, string[]>();
+
+const PK_QUERY = `
+  select kcu.column_name as col
+  from information_schema.table_constraints tc
+  join information_schema.key_column_usage kcu
+    on tc.constraint_name = kcu.constraint_name
+   and tc.constraint_schema = kcu.constraint_schema
+  where tc.constraint_type = 'PRIMARY KEY'
+    and tc.table_schema = 'public' and tc.table_name = $1
+  order by kcu.ordinal_position
+`;
+
+/** Jadvalning primary key ustunlari (upsert ON CONFLICT targeti uchun). */
+async function getPrimaryKey(
+  project: Project,
+  table: string,
+): Promise<string[]> {
+  const key = `${project.ref}:${table}`;
+  const cached = pkCache.get(key);
+  if (cached) return cached;
+  const pool = getProjectPool(project);
+  const rows = (await pool.begin(async (tx) => {
+    await tx.unsafe(`set local role "service_role"`);
+    return tx.unsafe(PK_QUERY, [table] as never[]);
+  })) as { col: string }[];
+  const cols = rows.map((r) => r.col);
+  pkCache.set(key, cols);
+  return cols;
+}
+
 /** base va embed jadval orasidagi FK'ni aniqlaydi (to-one yoki to-many). */
 async function resolveEmbed(
   project: Project,
@@ -185,6 +217,21 @@ export async function executeRest(
     columnTypes = await getColumnTypes(project, input.table);
   }
 
+  // POST upsert: ON CONFLICT targeti (?on_conflict= yoki PK) — tranzaksiyadan oldin.
+  let conflictSpec:
+    | { target: string[]; action: "merge" | "ignore" }
+    | undefined;
+  if (method === "POST") {
+    const c = parseConflict(input.query.on_conflict, input.prefer);
+    if (c) {
+      let target = c.target;
+      if (target.length === 0 && c.action === "merge") {
+        target = await getPrimaryKey(project, input.table);
+      }
+      conflictSpec = { target, action: c.action };
+    }
+  }
+
   try {
     return await pool.begin(async (tx) => {
       // 1 + 2: rol va JWT claim'larni tranzaksiyaga o'rnatamiz.
@@ -256,6 +303,7 @@ export async function executeRest(
           table: input.table,
           rows: asRows(input.body),
           returning: true,
+          conflict: conflictSpec,
         });
         const rows = await tx.unsafe(q.text, q.params as never[]);
         return { status: 201, body: rows };
@@ -266,11 +314,21 @@ export async function executeRest(
         if (!set || typeof set !== "object" || Array.isArray(set)) {
           throw new RestHttpError(400, "Update uchun JSON obyekt kerak");
         }
+        const filters = parseFilters(input.query);
+        const orFilters = parseOr(input.query.or);
+        // Xavfsizlik: filtrsiz UPDATE butun jadvalni o'zgartiradi — taqiqlaymiz.
+        if (filters.length === 0 && orFilters.length === 0) {
+          throw new RestHttpError(
+            400,
+            "Filtrsiz UPDATE taqiqlangan — kamida bitta filtr qo'shing (masalan ?id=eq.1)",
+          );
+        }
         const q = buildUpdate({
           schema: SCHEMA,
           table: input.table,
           set: set as Record<string, unknown>,
-          filters: parseFilters(input.query),
+          filters,
+          orFilters,
           returning: true,
           columnTypes,
         });
@@ -279,10 +337,20 @@ export async function executeRest(
       }
 
       if (method === "DELETE") {
+        const filters = parseFilters(input.query);
+        const orFilters = parseOr(input.query.or);
+        // Xavfsizlik: filtrsiz DELETE butun jadvalni o'chiradi — taqiqlaymiz.
+        if (filters.length === 0 && orFilters.length === 0) {
+          throw new RestHttpError(
+            400,
+            "Filtrsiz DELETE taqiqlangan — kamida bitta filtr qo'shing (masalan ?id=eq.1)",
+          );
+        }
         const q = buildDelete({
           schema: SCHEMA,
           table: input.table,
-          filters: parseFilters(input.query),
+          filters,
+          orFilters,
           returning: true,
           columnTypes,
         });
@@ -314,6 +382,29 @@ function parseCountMode(
   if (v === "exact") return "exact";
   if (v === "estimated" || v === "planned") return "estimated";
   return null;
+}
+
+/**
+ * Upsert konfliktini aniqlaydi: `Prefer: resolution=merge-duplicates|ignore-duplicates`
+ * va `?on_conflict=col1,col2`. Hech biri bo'lmasa null (oddiy insert).
+ */
+function parseConflict(
+  rawOnConflict: string | string[] | undefined,
+  prefer: string | undefined,
+): { target: string[]; action: "merge" | "ignore" } | null {
+  const onConflict = firstString(rawOnConflict);
+  const target = onConflict
+    ? onConflict.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
+  let action: "merge" | "ignore" | null = null;
+  if (prefer) {
+    if (/resolution=merge-duplicates/.test(prefer)) action = "merge";
+    else if (/resolution=ignore-duplicates/.test(prefer)) action = "ignore";
+  }
+  // on_conflict berilgan, lekin resolution ko'rsatilmagan bo'lsa -> merge (PostgREST kabi).
+  if (!action && onConflict) action = "merge";
+  if (!action) return null;
+  return { target, action };
 }
 
 /**

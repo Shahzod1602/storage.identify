@@ -2,10 +2,8 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
-import { z } from "zod";
 import { getConfig } from "@storagedb/config";
 import {
-  createProject,
   closeAll,
   closeProjectPools,
   runMigrations,
@@ -81,29 +79,9 @@ app.get("/metrics", async (_req, reply) => {
   return reply.send(await metricsText());
 });
 
-// ── Control-plane: yangi loyiha yaratish ───────────────────────────────
-const createProjectBody = z.object({
-  name: z.string().min(1).max(64),
-  ownerEmail: z.string().email().optional(),
-});
-
-app.post("/v1/projects", async (req, reply) => {
-  const parsed = createProjectBody.safeParse(req.body);
-  if (!parsed.success) {
-    return reply.code(400).send({ error: parsed.error.flatten() });
-  }
-  const { project, keys } = await createProject(parsed.data);
-  return reply.code(201).send({
-    ref: project.ref,
-    name: project.name,
-    db_name: project.dbName,
-    // Bu kalitlar FAQAT shu javobda qaytadi — saqlab qo'ying.
-    anon_key: keys.anonKey,
-    service_key: keys.serviceKey,
-    // Misol uchun foydalanish URL'i:
-    api_url: `http://${req.headers.host}/v1/${project.ref}`,
-  });
-});
+// ── Loyiha yaratish endi FAQAT autentifikatsiya bilan: POST /admin/projects ──
+// (eski autentifikatsiyasiz POST /v1/projects xavfsizlik sababli olib tashlandi —
+//  u har kim cheksiz DB yaratishiga imkon berardi.)
 
 // ── REST API (Phase 1): /v1/:ref/rest/v1/:table ────────────────────────
 registerRestRoutes(app);

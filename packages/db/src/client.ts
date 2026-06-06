@@ -14,6 +14,8 @@ export function platform(): Sql {
     platformSql = postgres(getConfig().DATABASE_URL, {
       max: 10,
       onnotice: () => {}, // NOTICE'larni jim qilamiz
+      // Osilib qolgan control-plane so'rovlari hamma ulanishni band qilmasin.
+      connection: { statement_timeout: getConfig().STATEMENT_TIMEOUT_MS },
     });
   }
   return platformSql;

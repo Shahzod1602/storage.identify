@@ -368,6 +368,8 @@ export interface InsertOpts {
   table: string;
   rows: Record<string, unknown>[];
   returning?: boolean;
+  /** Upsert: ON CONFLICT (target) DO UPDATE/NOTHING. */
+  conflict?: { target: string[]; action: "merge" | "ignore" };
 }
 
 export function buildInsert(opts: InsertOpts): BuiltQuery {
@@ -382,6 +384,26 @@ export function buildInsert(opts: InsertOpts): BuiltQuery {
     .join(", ");
 
   let text = `insert into ${quoteIdent(opts.schema)}.${quoteIdent(opts.table)} (${colSql}) values ${valuesSql}`;
+
+  // Upsert (ON CONFLICT). merge -> konflikt ustunlaridan tashqari hammasini
+  // EXCLUDED bilan yangilaydi; ignore -> e'tiborsiz qoldiradi.
+  if (opts.conflict) {
+    const targetSql = opts.conflict.target.length
+      ? ` (${opts.conflict.target.map(quoteIdent).join(", ")})`
+      : "";
+    const updateCols = cols.filter(
+      (c) => !opts.conflict!.target.includes(c),
+    );
+    if (opts.conflict.action === "ignore" || updateCols.length === 0 || !targetSql) {
+      text += ` on conflict${targetSql} do nothing`;
+    } else {
+      const setSql = updateCols
+        .map((c) => `${quoteIdent(c)} = excluded.${quoteIdent(c)}`)
+        .join(", ");
+      text += ` on conflict${targetSql} do update set ${setSql}`;
+    }
+  }
+
   if (opts.returning) text += " returning *";
   return { text, params: p.values };
 }
@@ -393,6 +415,7 @@ export interface UpdateOpts {
   filters: Filter[];
   returning?: boolean;
   columnTypes?: Record<string, string>;
+  orFilters?: Filter[];
 }
 
 export function buildUpdate(opts: UpdateOpts): BuiltQuery {
@@ -404,7 +427,7 @@ export function buildUpdate(opts: UpdateOpts): BuiltQuery {
     .join(", ");
 
   let text = `update ${quoteIdent(opts.schema)}.${quoteIdent(opts.table)} set ${setSql}`;
-  const where = buildWhere(opts.filters, p, opts.columnTypes);
+  const where = buildWhere(opts.filters, p, opts.columnTypes, opts.orFilters);
   if (where) text += ` where ${where}`;
   if (opts.returning) text += " returning *";
   return { text, params: p.values };
@@ -416,12 +439,13 @@ export interface DeleteOpts {
   filters: Filter[];
   returning?: boolean;
   columnTypes?: Record<string, string>;
+  orFilters?: Filter[];
 }
 
 export function buildDelete(opts: DeleteOpts): BuiltQuery {
   const p = new Params();
   let text = `delete from ${quoteIdent(opts.schema)}.${quoteIdent(opts.table)}`;
-  const where = buildWhere(opts.filters, p, opts.columnTypes);
+  const where = buildWhere(opts.filters, p, opts.columnTypes, opts.orFilters);
   if (where) text += ` where ${where}`;
   if (opts.returning) text += " returning *";
   return { text, params: p.values };

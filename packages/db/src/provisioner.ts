@@ -186,7 +186,9 @@ grant usage on schema auth, storage to anon, authenticated, service_role;
 -- service_role public schemada jadval yaratishi mumkin (dashboard SQL editor uchun).
 grant create on schema public to service_role;
 
--- Kelajakdagi jadval/sequence'lar uchun standart huquqlar (RLS baribir qatorlarni nazorat qiladi).
+-- Kelajakdagi jadval/sequence'lar uchun standart huquqlar. Yangi public jadvalda
+-- RLS avtomatik yoqiladi (quyida event trigger), shuning uchun policy qo'shilmaguncha
+-- anon/authenticated qatorlarni ko'rmaydi — service_role esa BYPASSRLS bilan ishlaydi.
 -- (a) bootstrap roli (superuser) yaratgan jadvallar uchun:
 alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
 alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
@@ -277,6 +279,28 @@ begin
   execute format('create trigger realtime_notify after insert or update or delete on %s for each row execute function realtime.notify_change()', tbl);
 end;
 $en$;
+
+-- ═══════════ XAVFSIZLIK: yangi public jadvallarda RLS avtomatik ═══════════
+-- "Secure by default" (Supabase kabi): foydalanuvchi public schemada jadval
+-- yaratganda RLS avtomatik yoqiladi. Policy qo'shilmaguncha anon/authenticated
+-- hech qatorni ko'rmaydi/o'zgartirmaydi; service_role BYPASSRLS bilan ishlaydi.
+create or replace function auth.enable_rls_on_create() returns event_trigger
+  language plpgsql security definer as $erls$
+declare
+  obj record;
+begin
+  for obj in select * from pg_event_trigger_ddl_commands() loop
+    if obj.object_type = 'table' and obj.schema_name = 'public' then
+      execute format('alter table %s enable row level security', obj.object_identity);
+    end if;
+  end loop;
+end;
+$erls$;
+
+drop event trigger if exists trg_enable_rls;
+create event trigger trg_enable_rls on ddl_command_end
+  when tag in ('CREATE TABLE', 'CREATE TABLE AS', 'SELECT INTO')
+  execute function auth.enable_rls_on_create();
 
 -- Loyihaga xos login (authenticator) rol: REST shu rol orqali ulanib,
 -- JWT'dagi role'ga qarab SET ROLE anon|authenticated|service_role qiladi.

@@ -68,9 +68,10 @@ tuzing, Jadvallar/Auth/Storage bo'limlarini ko'ring.
 # Sog'liq
 curl http://localhost:8000/health
 
-# Loyiha yaratish (anon_key va service_key qaytadi — saqlang!)
-curl -X POST http://localhost:8000/v1/projects \
+# Loyiha yaratish (autentifikatsiya bilan — admin token; anon_key/service_key qaytadi)
+curl -X POST http://localhost:8000/admin/projects \
   -H 'Content-Type: application/json' \
+  -H 'x-admin-token: <ADMIN_TOKEN>' \
   -d '{"name":"Mening loyiham"}'
 
 # REST API (PostgREST uslubida) — RLS avtomatik qo'llanadi
