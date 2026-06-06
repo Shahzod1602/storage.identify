@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Copy, Check, Eye, EyeOff } from "lucide-react";
 import { useProject } from "@/components/project-context";
 import { GATEWAY } from "@/lib/api";
+import { copyText, toast } from "@/components/feedback";
 
 export default function OverviewPage() {
   const { ref, keys, error } = useProject();
@@ -123,10 +124,12 @@ function Field({
         )}
         <button
           className="text-faint transition hover:text-fg"
-          onClick={() => {
-            navigator.clipboard.writeText(value);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1200);
+          onClick={async () => {
+            if (await copyText(value)) {
+              setCopied(true);
+              toast.success("Nusxa olindi");
+              setTimeout(() => setCopied(false), 1200);
+            }
           }}
         >
           {copied ? <Check size={14} className="text-brand" /> : <Copy size={14} />}

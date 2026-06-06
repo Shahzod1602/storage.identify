@@ -23,6 +23,7 @@ import {
 } from "@/lib/api";
 import { useRequireAuth } from "@/components/auth-guard";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { copyText, toast } from "@/components/feedback";
 
 export default function DashboardPage() {
   const ready = useRequireAuth();
@@ -273,10 +274,12 @@ function CopyRow({ label, value }: { label: string; value: string }) {
       </code>
       <button
         className="btn-ghost btn-xs"
-        onClick={() => {
-          navigator.clipboard.writeText(value);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1200);
+        onClick={async () => {
+          if (await copyText(value)) {
+            setCopied(true);
+            toast.success("Nusxa olindi");
+            setTimeout(() => setCopied(false), 1200);
+          }
         }}
       >
         {copied ? <Check size={13} className="text-brand" /> : <Copy size={13} />}

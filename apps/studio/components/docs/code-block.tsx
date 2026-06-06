@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Copy, Check } from "lucide-react";
+import { copyText } from "@/components/feedback";
 
 export function CodeBlock({
   code,
@@ -21,10 +22,11 @@ export function CodeBlock({
         </span>
         <button
           className="text-white/45 transition hover:text-white"
-          onClick={() => {
-            navigator.clipboard.writeText(code);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1200);
+          onClick={async () => {
+            if (await copyText(code)) {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1200);
+            }
           }}
           aria-label="Nusxa olish"
         >

@@ -13,6 +13,7 @@ import {
 import { useProject } from "@/components/project-context";
 import { metaQuery } from "@/lib/api";
 import { DataGrid } from "@/components/data-grid";
+import { confirmDialog } from "@/components/feedback";
 
 const SAMPLE = `create table public.todos (
   id bigint generated always as identity primary key,
@@ -99,8 +100,14 @@ export default function SqlPage() {
     setError(null);
   }
 
-  function removeSnippet(id: string) {
-    if (!confirm("Bu so'rov o'chirilsinmi?")) return;
+  async function removeSnippet(id: string) {
+    const ok = await confirmDialog({
+      title: "So'rovni o'chirish",
+      message: "Bu saqlangan so'rov o'chiriladi.",
+      danger: true,
+      confirmLabel: "O'chirish",
+    });
+    if (!ok) return;
     setSnippets((prev) => {
       const next = prev.filter((s) => s.id !== id);
       if (next.length === 0) {

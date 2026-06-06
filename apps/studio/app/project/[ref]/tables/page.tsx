@@ -1,10 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Table2, Plus, RefreshCw, X, Database } from "lucide-react";
+import {
+  Table2,
+  Plus,
+  RefreshCw,
+  X,
+  Database,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { useProject } from "@/components/project-context";
 import { metaQuery, GATEWAY } from "@/lib/api";
 import { DataGrid } from "@/components/data-grid";
+import { toast, confirmDialog } from "@/components/feedback";
 
 interface Column {
   name: string;
@@ -14,12 +23,21 @@ interface Column {
   def: string | null;
 }
 
+const PAGE_SIZE = 50;
+
+function qIdent(name: string): string {
+  return `"${name.replace(/"/g, '""')}"`;
+}
+
 export default function TablesPage() {
   const { ref, keys } = useProject();
   const [tables, setTables] = useState<string[]>([]);
   const [active, setActive] = useState<string | null>(null);
   const [columns, setColumns] = useState<Column[]>([]);
+  const [pkCols, setPkCols] = useState<string[]>([]);
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [showInsert, setShowInsert] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
@@ -35,7 +53,6 @@ export default function TablesPage() {
       );
       const names = r.map((x) => String(x.table_name));
       setTables(names);
-      // Birinchi jadvalni avtomatik ochamiz (Supabase uslubi).
       if (!active && names.length > 0) void open(names[0]);
       setError(null);
     } catch (e) {
@@ -45,12 +62,13 @@ export default function TablesPage() {
 
   useEffect(() => {
     void loadTables();
-  }, [ref, keys]);
+  }, [ref, keys?.service_key]);
 
   async function open(table: string) {
     if (!keys) return;
     setActive(table);
     setShowInsert(false);
+    setPage(0);
     try {
       const cols = await metaQuery(
         ref,
@@ -69,17 +87,60 @@ export default function TablesPage() {
           def: c.column_default != null ? String(c.column_default) : null,
         })),
       );
-      setRows(
-        await metaQuery(
-          ref,
-          keys.service_key,
-          `select * from "public"."${table}" order by 1 limit 100`,
-        ),
+      // Primary key (o'chirish/sahifalash uchun)
+      const pk = await metaQuery(
+        ref,
+        keys.service_key,
+        `select kcu.column_name as col
+         from information_schema.table_constraints tc
+         join information_schema.key_column_usage kcu
+           on tc.constraint_name = kcu.constraint_name
+          and tc.constraint_schema = kcu.constraint_schema
+         where tc.constraint_type='PRIMARY KEY'
+           and tc.table_schema='public' and tc.table_name='${table}'
+         order by kcu.ordinal_position`,
       );
+      const pkNames = pk.map((x) => String(x.col));
+      setPkCols(pkNames);
+      await loadRows(table, 0, pkNames);
       setError(null);
     } catch (e) {
       setError((e as Error).message);
     }
+  }
+
+  async function loadRows(table: string, pageN: number, pk: string[]) {
+    if (!keys) return;
+    const orderBy = pk.length ? pk.map(qIdent).join(", ") : "1";
+    const [data, cnt] = await Promise.all([
+      metaQuery(
+        ref,
+        keys.service_key,
+        `select * from "public".${qIdent(table)} order by ${orderBy}
+         limit ${PAGE_SIZE} offset ${pageN * PAGE_SIZE}`,
+      ),
+      metaQuery(
+        ref,
+        keys.service_key,
+        `select count(*)::int as count from "public".${qIdent(table)}`,
+      ),
+    ]);
+    setRows(data);
+    setTotal(Number(cnt[0]?.count ?? 0));
+    setPage(pageN);
+  }
+
+  async function goPage(n: number) {
+    if (!active) return;
+    try {
+      await loadRows(active, n, pkCols);
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }
+
+  async function refresh() {
+    if (active) await goPage(page);
   }
 
   async function insertRow() {
@@ -94,23 +155,55 @@ export default function TablesPage() {
       body: JSON.stringify(body),
     });
     if (!res.ok) {
-      setError((await res.json()).error ?? "Insert xatosi");
+      const msg = (await res.json().catch(() => ({}))).error ?? "Insert xatosi";
+      setError(msg);
+      toast.error(msg);
       return;
     }
     setForm({});
     setShowInsert(false);
-    await open(active);
+    setError(null);
+    toast.success("Qator qo'shildi");
+    await goPage(0);
+  }
+
+  async function deleteRow(row: Record<string, unknown>) {
+    if (!keys || !active) return;
+    if (pkCols.length === 0) {
+      toast.error("Bu jadvalda primary key yo'q — qatorni UI'dan o'chirib bo'lmaydi");
+      return;
+    }
+    const ok = await confirmDialog({
+      title: "Qatorni o'chirish",
+      message: "Bu qator butunlay o'chiriladi.",
+      danger: true,
+      confirmLabel: "O'chirish",
+    });
+    if (!ok) return;
+    const params = pkCols
+      .map((c) => `${encodeURIComponent(c)}=eq.${encodeURIComponent(String(row[c]))}`)
+      .join("&");
+    const res = await fetch(
+      `${GATEWAY}/v1/${ref}/rest/v1/${active}?${params}`,
+      { method: "DELETE", headers: { apikey: keys.service_key } },
+    );
+    if (!res.ok) {
+      toast.error((await res.json().catch(() => ({}))).error ?? "O'chirishda xato");
+      return;
+    }
+    toast.success("Qator o'chirildi");
+    // Oxirgi sahifadagi yagona qator o'chsa — oldingi sahifaga qaytamiz.
+    const lastOnPage = rows.length === 1 && page > 0;
+    await goPage(lastOnPage ? page - 1 : page);
   }
 
   const typeMap = Object.fromEntries(columns.map((c) => [c.name, c.type]));
-
-  // Insert formasida ko'rsatiladigan ustunlar (identity/auto ustunlar chiqmaydi).
   const editableCols = columns.filter((c) => !c.identity);
-  // Majburiy: NOT NULL va default yo'q. Bo'lsa — to'ldirilishi shart.
   const isRequired = (c: Column) => !c.nullable && c.def === null;
   const missingRequired = editableCols.some(
     (c) => isRequired(c) && !(form[c.name] ?? "").trim(),
   );
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div className="flex h-full">
@@ -121,7 +214,7 @@ export default function TablesPage() {
             schema: public
           </span>
           <button
-            className="text-faint hover:text-fg"
+            className="text-faint transition hover:text-fg"
             onClick={loadTables}
             title="Yangilash"
           >
@@ -157,7 +250,7 @@ export default function TablesPage() {
           <div className="grid flex-1 place-items-center text-center">
             <div>
               <Database size={28} className="mx-auto mb-3 text-faint" />
-              <p className="text-sm text-muted">
+              <p className="text-sm text-secondary">
                 Chapdan jadval tanlang yoki SQL Editor'da yarating
               </p>
             </div>
@@ -168,23 +261,52 @@ export default function TablesPage() {
               <div className="flex items-center gap-2 text-[13px]">
                 <Table2 size={15} className="text-brand" />
                 <span className="font-medium">{active}</span>
-                <span className="text-faint">· {rows.length} qator</span>
+                <span className="text-faint">· {total} qator</span>
               </div>
-              <button
-                className="btn"
-                onClick={() => setShowInsert((v) => !v)}
-              >
-                <Plus size={14} /> Insert
+              <button className="btn" onClick={() => setShowInsert((v) => !v)}>
+                <Plus size={14} /> Qator qo'shish
               </button>
             </div>
 
-            {error && (
-              <div className="m-4 alert-danger text-xs">{error}</div>
-            )}
+            {error && <div className="m-4 alert-danger text-xs">{error}</div>}
 
             <div className="flex min-h-0 flex-1">
-              <div className="min-w-0 flex-1 overflow-auto p-4">
-                <DataGrid rows={rows} types={typeMap} emptyHint="Qator yo'q" />
+              <div className="flex min-w-0 flex-1 flex-col">
+                <div className="min-h-0 flex-1 overflow-auto p-4">
+                  <DataGrid
+                    rows={rows}
+                    types={typeMap}
+                    emptyHint="Qator yo'q"
+                    onDeleteRow={deleteRow}
+                  />
+                </div>
+                {/* Pagination */}
+                {total > PAGE_SIZE && (
+                  <div className="flex h-10 shrink-0 items-center justify-between border-t border-border px-4 text-xs text-secondary">
+                    <span>
+                      {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} / {total}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        className="btn-ghost btn-xs"
+                        disabled={page === 0}
+                        onClick={() => goPage(page - 1)}
+                      >
+                        <ChevronLeft size={14} /> Oldingi
+                      </button>
+                      <span className="px-1 tabular-nums">
+                        {page + 1} / {pageCount}
+                      </span>
+                      <button
+                        className="btn-ghost btn-xs"
+                        disabled={(page + 1) * PAGE_SIZE >= total}
+                        onClick={() => goPage(page + 1)}
+                      >
+                        Keyingi <ChevronRight size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {showInsert && (
@@ -192,8 +314,9 @@ export default function TablesPage() {
                   <div className="mb-1 flex items-center justify-between">
                     <span className="text-sm font-medium">Yangi qator</span>
                     <button
-                      className="text-faint hover:text-fg"
+                      className="text-faint transition hover:text-fg"
                       onClick={() => setShowInsert(false)}
+                      aria-label="Yopish"
                     >
                       <X size={15} />
                     </button>
@@ -205,11 +328,11 @@ export default function TablesPage() {
                   <div className="space-y-3">
                     {editableCols.map((c) => (
                       <div key={c.name}>
-                        <label className="mb-1 flex items-center gap-1.5 text-xs text-muted">
+                        <label className="mb-1 flex items-center gap-1.5 text-xs text-secondary">
                           <span>{c.name}</span>
                           <span className="col-type">{c.type}</span>
                           {isRequired(c) ? (
-                            <span className="text-red-400" title="Majburiy">
+                            <span className="text-danger" title="Majburiy">
                               *
                             </span>
                           ) : (
@@ -238,7 +361,7 @@ export default function TablesPage() {
                     </button>
                     {missingRequired && (
                       <p className="text-center text-xs text-faint">
-                        <span className="text-red-400">*</span> majburiy maydonlarni
+                        <span className="text-danger">*</span> majburiy maydonlarni
                         to'ldiring
                       </p>
                     )}
@@ -255,7 +378,6 @@ export default function TablesPage() {
 
 const NUMERIC_TYPES = ["int2", "int4", "int8", "float4", "float8", "numeric"];
 
-// Ustun tipiga mos input: bool -> select, son -> number, qolgani -> text.
 function CellInput({
   column,
   value,
@@ -293,7 +415,6 @@ function CellInput({
   );
 }
 
-// `nextval('..'::regclass)` / `'x'::text` kabi defaultni qisqartiradi.
 function shortDefault(def: string): string {
   const clean = def.replace(/::[a-z0-9_ ."[\]]+/gi, "").replace(/^'|'$/g, "").trim();
   return clean.length > 16 ? clean.slice(0, 16) + "…" : clean;
@@ -301,19 +422,19 @@ function shortDefault(def: string): string {
 
 function shortType(t: string): string {
   const map: Record<string, string> = {
-    "bigint": "int8",
-    "integer": "int4",
-    "smallint": "int2",
-    "boolean": "bool",
+    bigint: "int8",
+    integer: "int4",
+    smallint: "int2",
+    boolean: "bool",
     "character varying": "varchar",
     "timestamp with time zone": "timestamptz",
     "timestamp without time zone": "timestamp",
     "double precision": "float8",
-    "numeric": "numeric",
-    "text": "text",
-    "uuid": "uuid",
-    "jsonb": "jsonb",
-    "json": "json",
+    numeric: "numeric",
+    text: "text",
+    uuid: "uuid",
+    jsonb: "jsonb",
+    json: "json",
   };
   return map[t] ?? t;
 }

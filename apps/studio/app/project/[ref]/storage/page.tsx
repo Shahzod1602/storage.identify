@@ -9,9 +9,11 @@ import {
   Globe,
   RefreshCw,
   Download,
+  Trash2,
 } from "lucide-react";
 import { useProject } from "@/components/project-context";
 import { metaQuery, GATEWAY } from "@/lib/api";
+import { toast, confirmDialog, promptDialog } from "@/components/feedback";
 
 interface Bucket {
   id: string;
@@ -30,6 +32,7 @@ export default function StoragePage() {
   const [active, setActive] = useState<string | null>(null);
   const [objects, setObjects] = useState<ObjectRow[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function loadBuckets() {
@@ -50,55 +53,102 @@ export default function StoragePage() {
 
   async function loadObjects(bucket: string) {
     if (!keys) return;
-    setObjects(
-      (await metaQuery(
-        ref,
-        keys.service_key,
-        `select bucket_id, name, size, mime_type from storage.objects
-         where bucket_id='${bucket}' order by created_at desc limit 200`,
-      )) as unknown as ObjectRow[],
-    );
+    try {
+      setObjects(
+        (await metaQuery(
+          ref,
+          keys.service_key,
+          `select bucket_id, name, size, mime_type from storage.objects
+           where bucket_id='${bucket}' order by created_at desc limit 200`,
+        )) as unknown as ObjectRow[],
+      );
+      setError(null);
+    } catch (e) {
+      setError((e as Error).message);
+    }
   }
 
   useEffect(() => {
     void loadBuckets();
-  }, [ref, keys]);
+  }, [ref, keys?.service_key]);
   useEffect(() => {
     if (active) void loadObjects(active);
-  }, [active, keys]);
+  }, [active, keys?.service_key]);
 
   async function newBucket() {
     if (!keys) return;
-    const id = prompt("Bucket nomi:");
-    if (!id) return;
-    const isPublic = confirm("Public bo'lsinmi? (OK = public, Cancel = private)");
-    const res = await fetch(`${GATEWAY}/v1/${ref}/storage/v1/bucket`, {
+    const res = await promptDialog({
+      title: "Yangi bucket",
+      label: "Bucket nomi",
+      placeholder: "masalan: rasmlar",
+      toggleLabel: "Ommaviy (public) — hammaga ochiq",
+      confirmLabel: "Yaratish",
+    });
+    if (!res) return;
+    const r = await fetch(`${GATEWAY}/v1/${ref}/storage/v1/bucket`, {
       method: "POST",
       headers: { apikey: keys.service_key, "content-type": "application/json" },
-      body: JSON.stringify({ id, public: isPublic }),
+      body: JSON.stringify({ id: res.value, public: res.toggle }),
     });
-    if (!res.ok) setError((await res.json()).error ?? "Xato");
-    else await loadBuckets();
+    if (!r.ok) {
+      const msg = (await r.json().catch(() => ({}))).error ?? "Bucket yaratilmadi";
+      toast.error(msg);
+      return;
+    }
+    toast.success(`"${res.value}" bucket yaratildi`);
+    await loadBuckets();
+    setActive(res.value);
   }
 
   async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file || !keys || !active) return;
-    const buf = await file.arrayBuffer();
-    const res = await fetch(
-      `${GATEWAY}/v1/${ref}/storage/v1/object/${active}/${encodeURIComponent(file.name)}`,
-      {
-        method: "POST",
-        headers: {
-          apikey: keys.service_key,
-          "content-type": file.type || "application/octet-stream",
+    setUploading(true);
+    try {
+      const buf = await file.arrayBuffer();
+      const res = await fetch(
+        `${GATEWAY}/v1/${ref}/storage/v1/object/${active}/${encodeURIComponent(file.name)}`,
+        {
+          method: "POST",
+          headers: {
+            apikey: keys.service_key,
+            "content-type": file.type || "application/octet-stream",
+          },
+          body: buf,
         },
-        body: buf,
-      },
+      );
+      if (!res.ok) {
+        const msg = (await res.json().catch(() => ({}))).error ?? "Yuklash xatosi";
+        toast.error(msg);
+      } else {
+        toast.success(`"${file.name}" yuklandi`);
+        await loadObjects(active);
+      }
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  async function deleteObject(name: string) {
+    if (!keys || !active) return;
+    const ok = await confirmDialog({
+      title: "Faylni o'chirish",
+      message: `"${name}" butunlay o'chiriladi.`,
+      danger: true,
+      confirmLabel: "O'chirish",
+    });
+    if (!ok) return;
+    const res = await fetch(
+      `${GATEWAY}/v1/${ref}/storage/v1/object/${active}/${encodeURIComponent(name)}`,
+      { method: "DELETE", headers: { apikey: keys.service_key } },
     );
-    if (!res.ok) setError((await res.json()).error ?? "Yuklash xatosi");
-    else await loadObjects(active);
-    if (fileRef.current) fileRef.current.value = "";
+    if (!res.ok) {
+      toast.error("Faylni o'chirishda xato");
+      return;
+    }
+    toast.success("Fayl o'chirildi");
+    await loadObjects(active);
   }
 
   const bucket = buckets.find((b) => b.id === active);
@@ -111,10 +161,18 @@ export default function StoragePage() {
             Bucketlar
           </span>
           <div className="flex gap-1">
-            <button className="text-faint hover:text-fg" onClick={loadBuckets}>
+            <button
+              className="text-faint transition hover:text-fg"
+              onClick={loadBuckets}
+              title="Yangilash"
+            >
               <RefreshCw size={13} />
             </button>
-            <button className="text-faint hover:text-fg" onClick={newBucket}>
+            <button
+              className="text-faint transition hover:text-fg"
+              onClick={newBucket}
+              title="Yangi bucket"
+            >
               <FolderPlus size={14} />
             </button>
           </div>
@@ -152,11 +210,16 @@ export default function StoragePage() {
                 {bucket?.public ? <Globe size={14} /> : <Lock size={14} />}
                 <span className="font-medium">{active}</span>
                 <span className={`badge ${bucket?.public ? "badge-brand" : ""}`}>
-                  {bucket?.public ? "public" : "private"}
+                  {bucket?.public ? "ommaviy" : "maxfiy"}
                 </span>
+                <span className="text-faint">· {objects.length}</span>
               </div>
-              <button className="btn" onClick={() => fileRef.current?.click()}>
-                <Upload size={14} /> Yuklash
+              <button
+                className="btn"
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+              >
+                <Upload size={14} /> {uploading ? "Yuklanmoqda…" : "Yuklash"}
               </button>
               <input
                 ref={fileRef}
@@ -179,26 +242,33 @@ export default function StoragePage() {
                 objects.map((o) => (
                   <div
                     key={o.name}
-                    className="flex items-center gap-3 rounded-md px-3 py-2 text-[13px] transition hover:bg-hover"
+                    className="group flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition hover:bg-hover"
                   >
-                    <FileIcon size={15} className="text-faint" />
+                    <FileIcon size={15} className="shrink-0 text-faint" />
                     <span className="flex-1 truncate">{o.name}</span>
                     <span className="text-xs text-faint">
                       {formatSize(o.size)}
                     </span>
-                    <span className="w-32 truncate text-xs text-faint">
+                    <span className="hidden w-32 truncate text-xs text-faint sm:block">
                       {o.mime_type}
                     </span>
                     {bucket?.public && (
                       <a
-                        href={`${GATEWAY}/v1/${ref}/storage/v1/public/${active}/${o.name}`}
+                        href={`${GATEWAY}/v1/${ref}/storage/v1/public/${active}/${encodeURIComponent(o.name)}`}
                         target="_blank"
-                        className="text-faint hover:text-brand"
+                        className="text-faint transition hover:text-brand"
                         title="Yuklab olish"
                       >
                         <Download size={14} />
                       </a>
                     )}
+                    <button
+                      onClick={() => deleteObject(o.name)}
+                      className="text-faint opacity-0 transition hover:text-danger group-hover:opacity-100"
+                      title="O'chirish"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 ))
               )}

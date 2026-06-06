@@ -69,10 +69,12 @@ export async function createUser(
   );
 }
 export async function deleteUser(id: string): Promise<void> {
-  await fetch(`${GATEWAY}/admin/users/${id}`, {
-    method: "DELETE",
-    headers: adminHeaders(),
-  });
+  await jsonOrThrow(
+    await fetch(`${GATEWAY}/admin/users/${id}`, {
+      method: "DELETE",
+      headers: adminHeaders(),
+    }),
+  );
 }
 
 export function logout(): void {

@@ -21,6 +21,7 @@ import {
 } from "@/lib/api";
 import { useRequireAuth } from "@/components/auth-guard";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { toast, confirmDialog } from "@/components/feedback";
 
 export default function UsersPage() {
   const ready = useRequireAuth();
@@ -76,16 +77,29 @@ export default function UsersPage() {
     try {
       await createUser(e, password, role);
       closeForm();
+      toast.success("Foydalanuvchi yaratildi");
       await reload();
     } catch (err) {
       setError((err as Error).message);
+      toast.error((err as Error).message);
     }
   }
 
   async function remove(u: PlatformUser) {
-    if (!confirm(`${u.email} o'chirilsinmi?`)) return;
-    await deleteUser(u.id);
-    await reload();
+    const ok = await confirmDialog({
+      title: "Foydalanuvchini o'chirish",
+      message: `${u.email} butunlay o'chiriladi.`,
+      danger: true,
+      confirmLabel: "O'chirish",
+    });
+    if (!ok) return;
+    try {
+      await deleteUser(u.id);
+      toast.success("Foydalanuvchi o'chirildi");
+      await reload();
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   }
 
   if (!ready) return null;

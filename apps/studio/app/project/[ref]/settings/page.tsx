@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ExternalLink, FileCode2, Copy, Check, Loader2 } from "lucide-react";
 import { useProject } from "@/components/project-context";
 import { GATEWAY, getTypes } from "@/lib/api";
+import { copyText, toast } from "@/components/feedback";
 
 export default function SettingsPage() {
   const { ref, keys, error } = useProject();
@@ -115,10 +116,12 @@ export default function SettingsPage() {
             <div className="mb-2 flex justify-end gap-2">
               <button
                 className="btn-ghost btn-xs"
-                onClick={() => {
-                  navigator.clipboard.writeText(types);
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 1200);
+                onClick={async () => {
+                  if (await copyText(types)) {
+                    setCopied(true);
+                    toast.success("Nusxa olindi");
+                    setTimeout(() => setCopied(false), 1200);
+                  }
                 }}
               >
                 {copied ? (

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { UserPlus, RefreshCw, Mail, X, Check, Ban, Trash2 } from "lucide-react";
 import { useProject } from "@/components/project-context";
 import { metaQuery, GATEWAY } from "@/lib/api";
+import { toast, confirmDialog } from "@/components/feedback";
 
 interface AuthUser {
   id: string;
@@ -39,7 +40,7 @@ export default function AuthPage() {
 
   useEffect(() => {
     void reload();
-  }, [ref, keys]);
+  }, [ref, keys?.service_key]);
 
   function adminUrl(id = ""): string {
     return `${GATEWAY}/v1/${ref}/auth/v1/admin/users${id ? "/" + id : ""}`;
@@ -54,31 +55,51 @@ export default function AuthPage() {
       body: JSON.stringify({ email, password }),
     });
     if (!res.ok) {
-      setError((await res.json()).error ?? "Xato");
+      const msg = (await res.json().catch(() => ({}))).error ?? "Xato";
+      setError(msg);
+      toast.error(msg);
       return;
     }
     setEmail("");
     setPassword("");
     setAdding(false);
+    toast.success("Foydalanuvchi qo'shildi");
     await reload();
   }
 
   async function toggleBan(u: AuthUser) {
     if (!keys) return;
-    await fetch(adminUrl(u.id), {
+    const res = await fetch(adminUrl(u.id), {
       method: "PUT",
       headers: { apikey: keys.service_key, "content-type": "application/json" },
       body: JSON.stringify({ banned: !u.banned_until }),
     });
+    if (!res.ok) {
+      toast.error("Amal bajarilmadi");
+      return;
+    }
+    toast.success(u.banned_until ? "Blokdan chiqarildi" : "Bloklandi");
     await reload();
   }
 
   async function deleteUser(u: AuthUser) {
-    if (!keys || !confirm(`${u.email} o'chirilsinmi?`)) return;
-    await fetch(adminUrl(u.id), {
+    if (!keys) return;
+    const ok = await confirmDialog({
+      title: "Foydalanuvchini o'chirish",
+      message: `${u.email} butunlay o'chiriladi.`,
+      danger: true,
+      confirmLabel: "O'chirish",
+    });
+    if (!ok) return;
+    const res = await fetch(adminUrl(u.id), {
       method: "DELETE",
       headers: { apikey: keys.service_key },
     });
+    if (!res.ok) {
+      toast.error("O'chirishda xato");
+      return;
+    }
+    toast.success("Foydalanuvchi o'chirildi");
     await reload();
   }
 
