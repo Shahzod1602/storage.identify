@@ -69,12 +69,17 @@ export function IconRail() {
         })}
       </nav>
 
-      <button
+      <Link
+        href={`${base}/settings`}
         title="Sozlamalar"
-        className="grid h-9 w-9 place-items-center rounded-md text-faint transition hover:bg-hover hover:text-fg"
+        className={`grid h-9 w-9 place-items-center rounded-md transition ${
+          pathname.startsWith(`${base}/settings`)
+            ? "bg-hover text-brand"
+            : "text-faint hover:bg-hover hover:text-fg"
+        }`}
       >
         <Settings size={18} strokeWidth={1.75} />
-      </button>
+      </Link>
     </aside>
   );
 }

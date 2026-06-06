@@ -162,6 +162,20 @@ export async function getKeys(ref: string): Promise<ProjectKeys> {
   );
 }
 
+/** Loyiha jadvallaridan generatsiya qilingan TypeScript turlari (admin). */
+export async function getTypes(ref: string): Promise<string> {
+  const res = await fetch(`${GATEWAY}/admin/projects/${ref}/types`, {
+    headers: adminHeaders(),
+    cache: "no-store",
+  });
+  if (res.status === 401 && typeof window !== "undefined") {
+    clearSession();
+    window.location.href = "/login";
+  }
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.text();
+}
+
 /** Loyiha DB'sida SQL bajaradi (service_key bilan). */
 export async function metaQuery(
   ref: string,

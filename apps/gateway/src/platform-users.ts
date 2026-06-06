@@ -51,13 +51,19 @@ export async function listPlatformUsers(): Promise<PlatformUser[]> {
   `;
 }
 
+// @ va keyin nuqtali domen shart bo'lgan oddiy format tekshiruvi.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export async function createPlatformUser(
   email: string,
   password: string,
   role: PlatformRole = "user",
 ): Promise<PlatformUser> {
-  if (!email || !password || password.length < 6) {
-    throw new GatewayError(400, "email va kamida 6 belgili parol kerak");
+  if (!email || !EMAIL_RE.test(email)) {
+    throw new GatewayError(400, "Email manzili noto'g'ri");
+  }
+  if (!password || password.length < 6) {
+    throw new GatewayError(400, "Parol kamida 6 belgi bo'lishi kerak");
   }
   const sql = platform();
   const exists = await sql<{ one: number }[]>`

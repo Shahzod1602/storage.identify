@@ -54,6 +54,13 @@ export default function DashboardPage() {
     }
   }
 
+  // Bekor qilinganda yozilgan nom o'chiriladi — keyingi safar bo'sh ochiladi.
+  function cancelCreate() {
+    setName("");
+    setError(null);
+    setCreating(false);
+  }
+
   if (!ready) return null;
 
   const filtered = projects.filter((p) =>
@@ -91,7 +98,10 @@ export default function DashboardPage() {
       <div className="mx-auto max-w-6xl px-6 py-10">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-xl font-medium">Loyihalar</h1>
-          <button className="btn" onClick={() => setCreating((v) => !v)}>
+          <button
+            className="btn"
+            onClick={() => (creating ? cancelCreate() : setCreating(true))}
+          >
             <Plus size={15} /> Yangi loyiha
           </button>
         </div>
@@ -122,7 +132,7 @@ export default function DashboardPage() {
             <button className="btn" onClick={onCreate}>
               Yaratish
             </button>
-            <button className="btn-ghost" onClick={() => setCreating(false)}>
+            <button className="btn-ghost" onClick={cancelCreate}>
               Bekor
             </button>
           </div>

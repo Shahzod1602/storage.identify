@@ -30,6 +30,15 @@ export default function UsersPage() {
   const [role, setRole] = useState<"user" | "super_admin">("user");
   const [adding, setAdding] = useState(false);
 
+  // Forma'ni tozalab yopadi (Bekor / muvaffaqiyatli yaratish).
+  function closeForm() {
+    setEmail("");
+    setPassword("");
+    setRole("user");
+    setError(null);
+    setAdding(false);
+  }
+
   async function reload() {
     try {
       setUsers(await listUsers());
@@ -49,16 +58,25 @@ export default function UsersPage() {
       .catch(() => router.replace("/dashboard"));
   }, [ready, router]);
 
+  // Email format tekshiruvi: @ va keyin nuqtali domen shart (okk@gmail / sdfsdf o'tmaydi).
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
   async function add() {
-    if (!email || !password) return;
+    const e = email.trim();
+    if (!EMAIL_RE.test(e)) {
+      setError("Email manzili noto'g'ri (masalan: user@example.com)");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Parol kamida 6 belgi bo'lishi kerak");
+      return;
+    }
     try {
-      await createUser(email, password, role);
-      setEmail("");
-      setPassword("");
-      setAdding(false);
+      await createUser(e, password, role);
+      closeForm();
       await reload();
-    } catch (e) {
-      setError((e as Error).message);
+    } catch (err) {
+      setError((err as Error).message);
     }
   }
 
@@ -92,7 +110,10 @@ export default function UsersPage() {
             <button className="btn-default" onClick={reload}>
               <RefreshCw size={14} /> Yangilash
             </button>
-            <button className="btn" onClick={() => setAdding((v) => !v)}>
+            <button
+              className="btn"
+              onClick={() => (adding ? closeForm() : setAdding(true))}
+            >
               <UserPlus size={14} /> Yangi user
             </button>
           </div>
@@ -104,10 +125,17 @@ export default function UsersPage() {
               <label className="mb-1 block text-xs text-faint">Email</label>
               <input
                 className="input"
+                type="email"
                 placeholder="user@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && add()}
               />
+              {email.length > 0 && !EMAIL_RE.test(email.trim()) && (
+                <p className="mt-1 text-xs text-red-400">
+                  Email manzili noto'g'ri
+                </p>
+              )}
             </div>
             <div className="flex-1">
               <label className="mb-1 block text-xs text-faint">Parol</label>
@@ -117,7 +145,13 @@ export default function UsersPage() {
                 placeholder="kamida 6 belgi"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && add()}
               />
+              {password.length > 0 && password.length < 6 && (
+                <p className="mt-1 text-xs text-red-400">
+                  Kamida 6 belgi
+                </p>
+              )}
             </div>
             <div>
               <label className="mb-1 block text-xs text-faint">Role</label>
@@ -130,8 +164,15 @@ export default function UsersPage() {
                 <option value="super_admin">super_admin</option>
               </select>
             </div>
-            <button className="btn" onClick={add}>
+            <button
+              className="btn"
+              onClick={add}
+              disabled={!EMAIL_RE.test(email.trim()) || password.length < 6}
+            >
               Yaratish
+            </button>
+            <button className="btn-ghost" onClick={closeForm}>
+              Bekor
             </button>
           </div>
         )}
@@ -146,10 +187,10 @@ export default function UsersPage() {
           <table className="grid">
             <thead>
               <tr>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Yaratilgan</th>
-                <th>Amallar</th>
+                <th className="w-full">Email</th>
+                <th className="whitespace-nowrap">Role</th>
+                <th className="whitespace-nowrap">Yaratilgan</th>
+                <th className="whitespace-nowrap !text-right">Amallar</th>
               </tr>
             </thead>
             <tbody>
@@ -171,7 +212,7 @@ export default function UsersPage() {
                   <td className="text-muted">
                     {new Date(u.created_at).toLocaleDateString()}
                   </td>
-                  <td>
+                  <td className="text-right">
                     {u.role !== "super_admin" && (
                       <button
                         className="btn-ghost btn-xs"

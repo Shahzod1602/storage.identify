@@ -10,6 +10,8 @@ interface Column {
   name: string;
   type: string;
   identity: boolean;
+  nullable: boolean;
+  def: string | null;
 }
 
 export default function TablesPage() {
@@ -53,7 +55,7 @@ export default function TablesPage() {
       const cols = await metaQuery(
         ref,
         keys.service_key,
-        `select column_name, data_type, is_identity
+        `select column_name, data_type, is_identity, is_nullable, column_default
          from information_schema.columns
          where table_schema='public' and table_name='${table}'
          order by ordinal_position`,
@@ -63,6 +65,8 @@ export default function TablesPage() {
           name: String(c.column_name),
           type: shortType(String(c.data_type)),
           identity: c.is_identity === "YES",
+          nullable: c.is_nullable === "YES",
+          def: c.column_default != null ? String(c.column_default) : null,
         })),
       );
       setRows(
@@ -99,6 +103,14 @@ export default function TablesPage() {
   }
 
   const typeMap = Object.fromEntries(columns.map((c) => [c.name, c.type]));
+
+  // Insert formasida ko'rsatiladigan ustunlar (identity/auto ustunlar chiqmaydi).
+  const editableCols = columns.filter((c) => !c.identity);
+  // Majburiy: NOT NULL va default yo'q. Bo'lsa — to'ldirilishi shart.
+  const isRequired = (c: Column) => !c.nullable && c.def === null;
+  const missingRequired = editableCols.some(
+    (c) => isRequired(c) && !(form[c.name] ?? "").trim(),
+  );
 
   return (
     <div className="flex h-full">
@@ -179,7 +191,7 @@ export default function TablesPage() {
 
               {showInsert && (
                 <div className="w-80 shrink-0 overflow-auto border-l border-border bg-bg p-4">
-                  <div className="mb-3 flex items-center justify-between">
+                  <div className="mb-1 flex items-center justify-between">
                     <span className="text-sm font-medium">Yangi qator</span>
                     <button
                       className="text-faint hover:text-fg"
@@ -188,28 +200,50 @@ export default function TablesPage() {
                       <X size={15} />
                     </button>
                   </div>
+                  <p className="mb-3 text-xs text-faint">
+                    Bo'sh qoldirilgan maydon uchun ustunning default qiymati yoki
+                    NULL ishlatiladi.
+                  </p>
                   <div className="space-y-3">
-                    {columns
-                      .filter((c) => !c.identity)
-                      .map((c) => (
-                        <div key={c.name}>
-                          <label className="mb-1 block text-xs text-muted">
-                            {c.name}
-                            <span className="col-type">{c.type}</span>
-                          </label>
-                          <input
-                            className="input"
-                            placeholder="NULL / default"
-                            value={form[c.name] ?? ""}
-                            onChange={(e) =>
-                              setForm((f) => ({ ...f, [c.name]: e.target.value }))
-                            }
-                          />
-                        </div>
-                      ))}
-                    <button className="btn w-full" onClick={insertRow}>
+                    {editableCols.map((c) => (
+                      <div key={c.name}>
+                        <label className="mb-1 flex items-center gap-1.5 text-xs text-muted">
+                          <span>{c.name}</span>
+                          <span className="col-type">{c.type}</span>
+                          {isRequired(c) ? (
+                            <span className="text-red-400" title="Majburiy">
+                              *
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-faint">
+                              {c.def !== null
+                                ? `· default: ${shortDefault(c.def)}`
+                                : "· null"}
+                            </span>
+                          )}
+                        </label>
+                        <CellInput
+                          column={c}
+                          value={form[c.name] ?? ""}
+                          onChange={(v) =>
+                            setForm((f) => ({ ...f, [c.name]: v }))
+                          }
+                        />
+                      </div>
+                    ))}
+                    <button
+                      className="btn w-full"
+                      onClick={insertRow}
+                      disabled={missingRequired}
+                    >
                       Saqlash
                     </button>
+                    {missingRequired && (
+                      <p className="text-center text-xs text-faint">
+                        <span className="text-red-400">*</span> majburiy maydonlarni
+                        to'ldiring
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
@@ -219,6 +253,52 @@ export default function TablesPage() {
       </div>
     </div>
   );
+}
+
+const NUMERIC_TYPES = ["int2", "int4", "int8", "float4", "float8", "numeric"];
+
+// Ustun tipiga mos input: bool -> select, son -> number, qolgani -> text.
+function CellInput({
+  column,
+  value,
+  onChange,
+}: {
+  column: Column;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const required = !column.nullable && column.def === null;
+  const placeholder = required ? "majburiy" : column.def !== null ? "default" : "NULL";
+
+  if (column.type === "bool") {
+    return (
+      <select
+        className="input"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        <option value="">{placeholder}</option>
+        <option value="true">true</option>
+        <option value="false">false</option>
+      </select>
+    );
+  }
+
+  return (
+    <input
+      className="input"
+      type={NUMERIC_TYPES.includes(column.type) ? "number" : "text"}
+      placeholder={placeholder}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
+}
+
+// `nextval('..'::regclass)` / `'x'::text` kabi defaultni qisqartiradi.
+function shortDefault(def: string): string {
+  const clean = def.replace(/::[a-z0-9_ ."[\]]+/gi, "").replace(/^'|'$/g, "").trim();
+  return clean.length > 16 ? clean.slice(0, 16) + "…" : clean;
 }
 
 function shortType(t: string): string {

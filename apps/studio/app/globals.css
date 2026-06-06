@@ -80,6 +80,9 @@ body {
   }
   table.grid {
     @apply w-full border-collapse text-[13px];
+    /* `grid` class Tailwind'ning display:grid utilitasi bilan to'qnashadi —
+       jadval haqiqiy <table> bo'lib qolishi uchun display'ni qaytaramiz. */
+    display: table;
   }
   table.grid thead th {
     @apply sticky top-0 z-10 whitespace-nowrap border-b border-r border-border bg-panel px-3 py-2 text-left font-medium text-muted;
