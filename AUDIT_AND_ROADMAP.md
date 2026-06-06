@@ -5,6 +5,17 @@
 
 ---
 
+## ✅ Bajarildi (3 deploy — 2026-06-07)
+
+- **Faza 1 (P0 xavfsizlik):** RLS secure-by-default (event trigger; local PG17'da tasdiqlangan) · autentifikatsiyasiz `POST /v1/projects` olib tashlandi · filtrsiz PATCH/DELETE taqiqlandi · frontend xato handling (`res.ok` + toast).
+- **Faza 2 (correctness):** upsert (`ON CONFLICT`) endi ishlaydi · pool LRU eviction (MAX 50) · platform pool `statement_timeout` · mutatsiyalarda `or=` filtr.
+- **Faza 3 (Studio UX):** toast/confirm/prompt tizimi (barcha native dialog almashtirildi) · Table Editor pagination + qator o'chirish · storage fayl o'chirish + bucket modal · xavfsiz clipboard · a11y (kontrast/aria/scope) · mobil moslashuv (tool-panellar stack).
+- **SDK/docs:** `db.meta.query()` + Meta/DDL hujjatlari. **UI:** premium light+dark redizayn.
+
+**Hali qoldi (keyingi sessiyalar):** RLS policy editor UI · loyiha rename/**delete** UI (DELETE destructive — ehtiyotkorlik bilan) · cell-edit/sort · API-key revocation + `PLATFORM_SECRET` ajratish · ban-at-request · OAuth · pgvector · webhooks+cron · SDK session persistence · storage policy/list/S3 · backup UI · realtime multi-node. Tafsilot — quyidagi Faza 4/5.
+
+---
+
 ## TL;DR — eng muhim 6 ta
 
 | # | Muammo | Tur | Joy |
@@ -140,15 +151,15 @@
 
 ## 5. Tezkor g'alabalar (birinchi sprint — yuqori ta'sir / past mehnat)
 
-- [ ] `POST /v1/projects` gate (P0, ~S)
-- [ ] PATCH/DELETE filtr majburiy (P0, ~S)
-- [ ] Frontend yozuvlarni `jsonOrThrow`'ga + `res.ok` (P0, ~S)
-- [ ] Upsert `ON CONFLICT` (P1, ~S) — buzuq funksiyani tuzatadi
-- [ ] RLS auto-enable event trigger + docs tuzatish (P0, ~M)
-- [ ] `--faint` kontrastini AA'ga ko'tarish (a11y, ~XS)
-- [ ] `components/rows-table.tsx` dead kodni o'chirish (~XS)
-- [ ] `navigator.clipboard` fallback (~S)
-- [ ] Ban'ni so'rov vaqtida tekshirish (P1, ~S)
+- [x] `POST /v1/projects` olib tashlandi (P0)
+- [x] PATCH/DELETE filtr majburiy (P0)
+- [x] Frontend yozuvlarda `res.ok` + xato handling (P0)
+- [x] Upsert `ON CONFLICT` (P1) — buzuq funksiya tuzatildi
+- [x] RLS auto-enable event trigger + docs tuzatish (P0)
+- [x] `--faint`/`--muted` kontrast oshirildi (a11y)
+- [x] `components/rows-table.tsx` dead kod o'chirildi
+- [x] `navigator.clipboard` fallback (`copyText`)
+- [ ] Ban'ni so'rov vaqtida tekshirish (P1) — keyingi sessiya (caching kerak)
 
 ---
 

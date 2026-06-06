@@ -206,9 +206,9 @@ export default function TablesPage() {
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full flex-col md:flex-row">
       {/* Table list */}
-      <div className="flex w-60 shrink-0 flex-col border-r border-border bg-surface">
+      <div className="flex w-full shrink-0 flex-col border-b border-border bg-surface md:w-60 md:border-b-0 md:border-r">
         <div className="flex items-center justify-between px-3 py-3">
           <span className="text-[11px] font-medium uppercase tracking-wide text-faint">
             schema: public
@@ -221,7 +221,7 @@ export default function TablesPage() {
             <RefreshCw size={13} />
           </button>
         </div>
-        <div className="flex-1 overflow-auto px-2 pb-2">
+        <div className="max-h-44 overflow-auto px-2 pb-2 md:max-h-none md:flex-1">
           {tables.length === 0 && (
             <p className="px-2 py-2 text-xs text-faint">
               Jadval yo'q — SQL Editor'da yarating
@@ -270,7 +270,7 @@ export default function TablesPage() {
 
             {error && <div className="m-4 alert-danger text-xs">{error}</div>}
 
-            <div className="flex min-h-0 flex-1">
+            <div className="flex min-h-0 flex-1 flex-col md:flex-row">
               <div className="flex min-w-0 flex-1 flex-col">
                 <div className="min-h-0 flex-1 overflow-auto p-4">
                   <DataGrid
@@ -310,7 +310,7 @@ export default function TablesPage() {
               </div>
 
               {showInsert && (
-                <div className="w-80 shrink-0 overflow-auto border-l border-border bg-surface p-4">
+                <div className="w-full shrink-0 overflow-auto border-t border-border bg-surface p-4 md:w-80 md:border-l md:border-t-0">
                   <div className="mb-1 flex items-center justify-between">
                     <span className="text-sm font-medium">Yangi qator</span>
                     <button

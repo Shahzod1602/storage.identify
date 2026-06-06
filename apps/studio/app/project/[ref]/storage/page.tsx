@@ -154,8 +154,8 @@ export default function StoragePage() {
   const bucket = buckets.find((b) => b.id === active);
 
   return (
-    <div className="flex h-full">
-      <div className="flex w-60 shrink-0 flex-col border-r border-border bg-surface">
+    <div className="flex h-full flex-col md:flex-row">
+      <div className="flex w-full shrink-0 flex-col border-b border-border bg-surface md:w-60 md:border-b-0 md:border-r">
         <div className="flex items-center justify-between px-3 py-3">
           <span className="text-[11px] font-medium uppercase tracking-wide text-faint">
             Bucketlar
@@ -177,7 +177,7 @@ export default function StoragePage() {
             </button>
           </div>
         </div>
-        <div className="flex-1 overflow-auto px-2 pb-2">
+        <div className="max-h-40 overflow-auto px-2 pb-2 md:max-h-none md:flex-1">
           {buckets.length === 0 && (
             <p className="px-2 py-2 text-xs text-faint">Bucket yo'q</p>
           )}

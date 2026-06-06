@@ -19,8 +19,8 @@ function Topbar() {
         Loyihalar
       </Link>
       <ChevronRight size={14} className="text-faint" />
-      <span className="font-medium text-fg">{keys?.name ?? "…"}</span>
-      <code className="kbd ml-1">{ref}</code>
+      <span className="truncate font-medium text-fg">{keys?.name ?? "…"}</span>
+      <code className="kbd ml-1 hidden sm:inline">{ref}</code>
       <div className="ml-auto flex items-center gap-2">
         <span className="badge badge-brand">
           <Cloud size={11} /> Local
