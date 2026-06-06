@@ -105,7 +105,7 @@ export default function StoragePage() {
 
   return (
     <div className="flex h-full">
-      <div className="flex w-60 shrink-0 flex-col border-r border-border bg-bg">
+      <div className="flex w-60 shrink-0 flex-col border-r border-border bg-surface">
         <div className="flex items-center justify-between px-3 py-3">
           <span className="text-[11px] font-medium uppercase tracking-wide text-faint">
             Bucketlar
@@ -127,10 +127,10 @@ export default function StoragePage() {
             <button
               key={b.id}
               onClick={() => setActive(b.id)}
-              className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] transition ${
+              className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition ${
                 active === b.id
-                  ? "bg-hover text-brand"
-                  : "text-muted hover:bg-hover hover:text-fg"
+                  ? "bg-brand/10 font-medium text-brand"
+                  : "text-secondary hover:bg-hover hover:text-fg"
               }`}
             >
               {b.public ? <Globe size={13} /> : <Lock size={13} />}
@@ -167,9 +167,7 @@ export default function StoragePage() {
             </div>
 
             {error && (
-              <div className="m-4 card border-red-500/30 bg-red-500/5 p-3 text-xs text-red-400">
-                {error}
-              </div>
+              <div className="m-4 alert-danger text-xs">{error}</div>
             )}
 
             <div className="flex-1 overflow-auto p-2">

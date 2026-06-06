@@ -35,13 +35,14 @@ export function IconRail() {
   const base = `/project/${ref}`;
 
   return (
-    <aside className="flex w-14 shrink-0 flex-col items-center border-r border-border bg-bg py-3">
+    <aside className="z-20 flex w-16 shrink-0 flex-col items-center border-r border-border bg-surface py-3">
       <Link
         href="/dashboard"
         title="Loyihalar"
-        className="mb-4 grid h-8 w-8 place-items-center rounded-md bg-brand text-black transition hover:bg-brand-600"
+        className="group relative mb-4 grid h-9 w-9 place-items-center rounded-lg bg-brand text-brand-fg shadow-sm transition hover:bg-brand-600"
       >
         <span className="text-sm font-bold">s</span>
+        <Flyout label="Loyihalar" />
       </Link>
 
       <nav className="flex flex-1 flex-col items-center gap-1">
@@ -53,17 +54,17 @@ export function IconRail() {
             <Link
               key={slug}
               href={href}
-              title={label}
-              className={`group relative grid h-9 w-9 place-items-center rounded-md transition ${
+              className={`group relative grid h-10 w-10 place-items-center rounded-lg transition-colors ${
                 active
-                  ? "bg-hover text-brand"
+                  ? "bg-brand/10 text-brand"
                   : "text-faint hover:bg-hover hover:text-fg"
               }`}
             >
               {active && (
-                <span className="absolute -left-3 h-5 w-0.5 rounded-r bg-brand" />
+                <span className="absolute -left-3 h-5 w-[3px] rounded-r-full bg-brand" />
               )}
               <Icon size={18} strokeWidth={1.75} />
+              <Flyout label={label} />
             </Link>
           );
         })}
@@ -71,15 +72,27 @@ export function IconRail() {
 
       <Link
         href={`${base}/settings`}
-        title="Sozlamalar"
-        className={`grid h-9 w-9 place-items-center rounded-md transition ${
+        className={`group relative grid h-10 w-10 place-items-center rounded-lg transition-colors ${
           pathname.startsWith(`${base}/settings`)
-            ? "bg-hover text-brand"
+            ? "bg-brand/10 text-brand"
             : "text-faint hover:bg-hover hover:text-fg"
         }`}
       >
+        {pathname.startsWith(`${base}/settings`) && (
+          <span className="absolute -left-3 h-5 w-[3px] rounded-r-full bg-brand" />
+        )}
         <Settings size={18} strokeWidth={1.75} />
+        <Flyout label="Sozlamalar" />
       </Link>
     </aside>
+  );
+}
+
+/** Hover'da chiqadigan yorliq (tooltip). */
+function Flyout({ label }: { label: string }) {
+  return (
+    <span className="pointer-events-none absolute left-full z-50 ml-3 hidden whitespace-nowrap rounded-md border border-border bg-panel px-2 py-1 text-xs font-medium text-fg shadow-pop group-hover:block">
+      {label}
+    </span>
   );
 }

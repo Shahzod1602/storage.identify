@@ -38,7 +38,7 @@ export default function SettingsPage() {
   if (error)
     return (
       <Scroll>
-        <div className="card border-red-500/30 p-4 text-red-400">{error}</div>
+        <div className="alert-danger">{error}</div>
       </Scroll>
     );
   if (!keys)
@@ -107,7 +107,7 @@ export default function SettingsPage() {
         </div>
 
         {typesError && (
-          <p className="mt-3 text-xs text-red-400">{typesError}</p>
+          <p className="mt-3 text-xs text-danger">{typesError}</p>
         )}
 
         {types && (

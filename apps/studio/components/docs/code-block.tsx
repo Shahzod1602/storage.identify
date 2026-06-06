@@ -14,23 +14,24 @@ export function CodeBlock({
 }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="my-4 overflow-hidden rounded-lg border border-border bg-[#141414]">
-      <div className="flex items-center justify-between border-b border-border px-4 py-2">
-        <span className="font-mono text-[11px] uppercase tracking-wide text-faint">
+    <div className="my-5 overflow-hidden rounded-xl border border-border bg-[#0c0d10] shadow-pop">
+      <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5">
+        <span className="font-mono text-[11px] font-medium uppercase tracking-wide text-white/45">
           {title ?? lang}
         </span>
         <button
-          className="text-faint transition hover:text-fg"
+          className="text-white/45 transition hover:text-white"
           onClick={() => {
             navigator.clipboard.writeText(code);
             setCopied(true);
             setTimeout(() => setCopied(false), 1200);
           }}
+          aria-label="Nusxa olish"
         >
           {copied ? <Check size={13} className="text-brand" /> : <Copy size={13} />}
         </button>
       </div>
-      <pre className="overflow-x-auto p-4 font-mono text-[12.5px] leading-relaxed text-fg/90">
+      <pre className="overflow-x-auto p-4 font-mono text-[12.5px] leading-relaxed text-[#e6e6e6]">
         {code}
       </pre>
     </div>

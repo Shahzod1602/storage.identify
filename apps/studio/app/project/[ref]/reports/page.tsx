@@ -65,11 +65,7 @@ export default function ReportsPage() {
           Loyiha resurslari va so'rov statistikasi
         </p>
 
-        {error && (
-          <div className="card mb-5 border-red-500/30 bg-red-500/5 p-3 text-sm text-red-400">
-            {error}
-          </div>
-        )}
+        {error && <div className="alert-danger mb-5">{error}</div>}
 
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
           <Stat
@@ -105,13 +101,13 @@ export default function ReportsPage() {
           <ChartCard
             title="So'rovlar / interval"
             data={reqHist}
-            color="#3ecf8e"
+            color="#10b981"
             unit=""
           />
           <ChartCard
             title="O'rtacha kechikish (ms)"
             data={latHist}
-            color="#7dd3fc"
+            color="#0ea5e9"
             unit="ms"
           />
         </div>
@@ -148,7 +144,7 @@ function Stat({
         {label}
       </div>
       <div
-        className={`mt-2 text-2xl font-semibold ${danger ? "text-red-400" : "text-fg"}`}
+        className={`mt-2 text-2xl font-semibold tracking-tight ${danger ? "text-danger" : "text-fg"}`}
       >
         {value}
       </div>

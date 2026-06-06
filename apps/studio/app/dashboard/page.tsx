@@ -2,7 +2,17 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, Search, Database, Copy, Check, LogOut, Users } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Database,
+  Copy,
+  Check,
+  LogOut,
+  Users,
+  ArrowRight,
+  X,
+} from "lucide-react";
 import {
   listProjects,
   createProject,
@@ -12,6 +22,7 @@ import {
   type ProjectKeys,
 } from "@/lib/api";
 import { useRequireAuth } from "@/components/auth-guard";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function DashboardPage() {
   const ready = useRequireAuth();
@@ -68,17 +79,17 @@ export default function DashboardPage() {
   );
 
   return (
-    <div className="min-h-screen">
-      <header className="border-b border-border bg-bg">
+    <div className="min-h-screen bg-bg">
+      <header className="sticky top-0 z-20 border-b border-border bg-surface/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-6 py-3">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <span className="grid h-7 w-7 place-items-center rounded-md bg-brand text-sm font-bold text-black">
+          <Link href="/dashboard" className="flex items-center gap-2 font-semibold tracking-tight">
+            <span className="grid h-7 w-7 place-items-center rounded-lg bg-brand text-sm font-bold text-brand-fg shadow-sm">
               s
             </span>
-            <span className="font-medium">storagedb</span>
+            <span>storagedb</span>
           </Link>
-          <span className="text-faint">/</span>
-          <span className="text-muted">Tashkilot</span>
+          <ChevronSep />
+          <span className="text-sm text-secondary">Tashkilot</span>
           {role === "super_admin" && (
             <span className="badge badge-brand">super admin</span>
           )}
@@ -88,6 +99,7 @@ export default function DashboardPage() {
                 <Users size={15} /> Userlar
               </Link>
             )}
+            <ThemeToggle />
             <button className="btn-ghost" onClick={logout} title="Chiqish">
               <LogOut size={15} /> Chiqish
             </button>
@@ -96,8 +108,15 @@ export default function DashboardPage() {
       </header>
 
       <div className="mx-auto max-w-6xl px-6 py-10">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-xl font-medium">Loyihalar</h1>
+        <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Loyihalar</h1>
+            <p className="mt-1 text-sm text-secondary">
+              {loading
+                ? "Yuklanmoqda…"
+                : `${projects.length} ta loyiha · bitta serverda`}
+            </p>
+          </div>
           <button
             className="btn"
             onClick={() => (creating ? cancelCreate() : setCreating(true))}
@@ -106,24 +125,24 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        <div className="relative mb-6 max-w-xs">
+        <div className="relative mb-6 max-w-sm">
           <Search
             size={15}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-faint"
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-faint"
           />
           <input
             className="input pl-9"
-            placeholder="Loyiha qidirish..."
+            placeholder="Loyiha qidirish…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
 
         {creating && (
-          <div className="card mb-6 flex items-center gap-3 p-4">
+          <div className="card mb-6 flex flex-wrap items-center gap-3 p-4">
             <input
               autoFocus
-              className="input max-w-sm"
+              className="input max-w-sm flex-1"
               placeholder="Loyiha nomi"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -140,18 +159,40 @@ export default function DashboardPage() {
 
         {created && <NewKeys keys={created} onClose={() => setCreated(null)} />}
 
-        {error && (
-          <div className="card mb-6 border-red-500/30 bg-red-500/5 p-4 text-sm text-red-400">
-            {error}
-          </div>
-        )}
+        {error && <div className="alert-danger mb-6">{error}</div>}
 
         {loading ? (
-          <p className="text-sm text-faint">Yuklanmoqda...</p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="card p-5">
+                <div className="skeleton h-10 w-10 rounded-lg" />
+                <div className="skeleton mt-4 h-4 w-32" />
+                <div className="skeleton mt-2 h-3 w-24" />
+                <div className="skeleton mt-5 h-3 w-full" />
+              </div>
+            ))}
+          </div>
         ) : filtered.length === 0 ? (
-          <div className="grid place-items-center rounded-lg border border-dashed border-border py-20 text-center">
-            <Database size={28} className="mb-3 text-faint" />
-            <p className="text-sm text-muted">Loyiha topilmadi.</p>
+          <div className="grid place-items-center rounded-xl border border-dashed border-border-strong py-20 text-center">
+            <div className="grid h-12 w-12 place-items-center rounded-xl border border-border bg-surface text-faint">
+              <Database size={22} />
+            </div>
+            <p className="mt-4 font-medium">
+              {query ? "Loyiha topilmadi" : "Hali loyiha yo'q"}
+            </p>
+            <p className="mt-1 text-sm text-secondary">
+              {query
+                ? "Boshqa nom bilan qidirib ko'ring."
+                : "Birinchi loyihangizni yarating va API'ni ulang."}
+            </p>
+            {!query && (
+              <button
+                className="btn mt-5"
+                onClick={() => setCreating(true)}
+              >
+                <Plus size={15} /> Yangi loyiha
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -159,21 +200,26 @@ export default function DashboardPage() {
               <Link
                 key={p.ref}
                 href={`/project/${p.ref}`}
-                className="card group p-4 transition hover:border-border-strong hover:bg-hover"
+                className="card group p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/40"
               >
                 <div className="flex items-start justify-between">
-                  <span className="grid h-9 w-9 place-items-center rounded-md border border-border bg-bg text-brand">
-                    <Database size={16} />
+                  <span className="grid h-10 w-10 place-items-center rounded-lg border border-border bg-brand/10 text-brand">
+                    <Database size={18} />
                   </span>
-                  <span className="badge">
-                    <span className="h-1.5 w-1.5 rounded-full bg-brand" /> Active
+                  <span className="badge badge-brand">
+                    <span className="h-1.5 w-1.5 rounded-full bg-brand" /> Faol
                   </span>
                 </div>
-                <div className="mt-3 font-medium group-hover:text-brand">
+                <div className="mt-4 flex items-center gap-1.5 font-medium tracking-tight transition group-hover:text-brand">
                   {p.name}
+                  <ArrowRight
+                    size={14}
+                    className="opacity-0 transition group-hover:translate-x-0.5 group-hover:opacity-100"
+                  />
                 </div>
                 <div className="mt-1 font-mono text-xs text-faint">{p.ref}</div>
-                <div className="mt-3 border-t border-border pt-2 text-xs text-faint">
+                <div className="mt-4 flex items-center gap-1.5 border-t border-border pt-3 text-xs text-faint">
+                  <Database size={12} />
                   Postgres · {p.db_name}
                 </div>
               </Link>
@@ -185,20 +231,34 @@ export default function DashboardPage() {
   );
 }
 
+function ChevronSep() {
+  return <span className="text-faint">/</span>;
+}
+
 function NewKeys({ keys, onClose }: { keys: ProjectKeys; onClose: () => void }) {
   return (
-    <div className="card mb-6 border-brand/30 bg-brand/[0.04] p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <p className="text-sm font-medium text-brand">
-          "{keys.name}" yaratildi — kalitlarni saqlang
-        </p>
-        <button className="btn-ghost" onClick={onClose}>
-          ✕
+    <div className="card mb-6 animate-fade-in border-brand/30 bg-brand/[0.05] p-5">
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="grid h-7 w-7 place-items-center rounded-md bg-brand/15 text-brand">
+            <Check size={15} />
+          </span>
+          <p className="text-sm font-medium">
+            "{keys.name}" yaratildi — kalitlarni saqlang
+          </p>
+        </div>
+        <button className="btn-ghost !px-1.5" onClick={onClose}>
+          <X size={15} />
         </button>
       </div>
-      <CopyRow label="ref" value={keys.ref} />
-      <CopyRow label="anon key" value={keys.anon_key} />
-      <CopyRow label="service key" value={keys.service_key} />
+      <div className="rounded-lg border border-border bg-bg px-4">
+        <CopyRow label="ref" value={keys.ref} />
+        <CopyRow label="anon key" value={keys.anon_key} />
+        <CopyRow label="service key" value={keys.service_key} />
+      </div>
+      <p className="mt-3 text-xs text-secondary">
+        service key maxfiy — uni faqat backend'da ishlating va hech kimga bermang.
+      </p>
     </div>
   );
 }
@@ -206,9 +266,9 @@ function NewKeys({ keys, onClose }: { keys: ProjectKeys; onClose: () => void }) 
 function CopyRow({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="flex items-center gap-3 border-b border-border/50 py-2 last:border-0">
-      <span className="w-24 shrink-0 text-xs text-faint">{label}</span>
-      <code className="flex-1 truncate font-mono text-xs text-muted">
+    <div className="flex items-center gap-3 border-b border-border/60 py-2.5 last:border-0">
+      <span className="w-24 shrink-0 text-xs font-medium text-faint">{label}</span>
+      <code className="flex-1 truncate font-mono text-xs text-secondary">
         {value}
       </code>
       <button

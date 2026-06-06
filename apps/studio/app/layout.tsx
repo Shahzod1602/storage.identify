@@ -5,8 +5,12 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "storagedb Studio",
-  description: "Self-hosted BaaS dashboard",
+  description: "Self-hosted BaaS — Postgres, Auth, Storage, Realtime",
 };
+
+// Sahifa chizilishidan oldin mavzuni o'rnatadi (FOUC bo'lmasligi uchun).
+// Saqlangan tanlov bo'lmasa — tizim (OS) sozlamasiga moslashadi.
+const themeScript = `(function(){try{var t=localStorage.getItem('theme');var d=t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;var e=document.documentElement;e.classList.toggle('dark',d);e.style.colorScheme=d?'dark':'light';}catch(_){document.documentElement.classList.add('dark');}})();`;
 
 export default function RootLayout({
   children,
@@ -14,7 +18,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="uz" className={`${GeistSans.variable} ${GeistMono.variable}`}>
+    <html
+      lang="uz"
+      suppressHydrationWarning
+      className={`${GeistSans.variable} ${GeistMono.variable}`}
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="h-full font-sans">{children}</body>
     </html>
   );

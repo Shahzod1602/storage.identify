@@ -2,102 +2,181 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─────────────────────────────────────────────────────────────
+   Mavzu tokenlari — RGB kanal (R G B). Light = :root, Dark = .dark
+   ───────────────────────────────────────────────────────────── */
 :root {
+  --bg: 255 255 255;
+  --surface: 250 250 250;
+  --panel: 255 255 255;
+  --hover: 244 244 245;
+  --border: 233 233 238;
+  --border-strong: 214 214 221;
+  --fg: 9 9 11;
+  --secondary: 75 75 84;
+  --muted: 110 110 119;
+  --faint: 158 158 167;
+  --brand: 5 150 105;
+  --brand-600: 4 120 87;
+  --brand-700: 6 95 70;
+  --brand-fg: 255 255 255;
+  --danger: 220 38 38;
+  --danger-fg: 255 255 255;
+  --grid-line: 9 9 11;
+  --shadow-card: 0 1px 2px rgb(9 9 11 / 0.05), 0 1px 1px rgb(9 9 11 / 0.03);
+  --shadow-pop: 0 12px 36px -10px rgb(9 9 11 / 0.16), 0 4px 12px -4px rgb(9 9 11 / 0.08);
+  color-scheme: light;
+}
+
+.dark {
+  --bg: 10 10 10;
+  --surface: 15 15 17;
+  --panel: 22 22 24;
+  --hover: 32 32 36;
+  --border: 38 38 43;
+  --border-strong: 52 52 58;
+  --fg: 250 250 250;
+  --secondary: 163 163 173;
+  --muted: 146 146 156;
+  --faint: 108 108 119;
+  --brand: 52 211 153;
+  --brand-600: 16 185 129;
+  --brand-700: 5 150 105;
+  --brand-fg: 4 19 13;
+  --danger: 244 102 107;
+  --danger-fg: 18 6 6;
+  --grid-line: 255 255 255;
+  --shadow-card: 0 0 0 0 transparent;
+  --shadow-pop: 0 16px 44px -12px rgb(0 0 0 / 0.65), 0 6px 16px -6px rgb(0 0 0 / 0.5);
   color-scheme: dark;
 }
 
-* {
-  border-color: theme("colors.border");
-}
+@layer base {
+  * {
+    border-color: rgb(var(--border));
+  }
+  html,
+  body {
+    height: 100%;
+  }
+  body {
+    @apply bg-bg text-fg antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: rgb(var(--brand) / 0.22);
+  }
+  :focus-visible {
+    outline: 2px solid rgb(var(--brand) / 0.55);
+    outline-offset: 1px;
+  }
 
-html,
-body {
-  height: 100%;
-}
-
-body {
-  @apply bg-surface text-fg antialiased;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-}
-
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #333;
-  border: 2px solid theme("colors.surface");
-  border-radius: 6px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #444;
+  ::-webkit-scrollbar {
+    width: 11px;
+    height: 11px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--faint) / 0.4);
+    border: 3px solid rgb(var(--bg));
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--faint) / 0.7);
+  }
 }
 
 @layer components {
-  /* Buttons */
+  /* ── Buttons ── */
   .btn {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-md bg-brand px-3 py-1.5 text-[13px] font-medium text-black transition-colors hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg bg-brand px-3.5 py-2 text-[13px] font-medium text-brand-fg shadow-sm transition-all duration-150 hover:bg-brand-600 active:scale-[.98] disabled:pointer-events-none disabled:opacity-50;
   }
   .btn-default {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-border-strong bg-panel px-3 py-1.5 text-[13px] text-fg transition-colors hover:bg-hover hover:border-faint disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg border border-border-strong bg-panel px-3.5 py-2 text-[13px] font-medium text-fg transition-all duration-150 hover:bg-hover hover:border-faint/60 active:scale-[.98] disabled:opacity-50;
   }
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-[13px] text-muted transition-colors hover:bg-hover hover:text-fg;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-2 text-[13px] font-medium text-secondary transition-colors duration-150 hover:bg-hover hover:text-fg disabled:opacity-50;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg border border-danger/30 bg-danger/10 px-3.5 py-2 text-[13px] font-medium text-danger transition-colors hover:bg-danger/20 active:scale-[.98];
   }
   .btn-xs {
-    @apply px-2 py-1 text-xs;
+    @apply rounded-md px-2 py-1 text-xs;
   }
 
-  /* Inputs */
+  /* ── Inputs ── */
   .input {
-    @apply w-full rounded-md border border-border-strong bg-bg px-3 py-1.5 text-[13px] text-fg placeholder:text-faint outline-none transition focus:border-brand focus:ring-1 focus:ring-brand/30;
+    @apply w-full rounded-lg border border-border-strong bg-bg px-3 py-2 text-[13px] text-fg placeholder:text-faint outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/25;
+  }
+  .label {
+    @apply mb-1.5 block text-xs font-medium text-secondary;
   }
 
-  /* Cards / surfaces */
+  /* ── Surfaces ── */
   .card {
-    @apply rounded-lg border border-border bg-panel;
+    @apply rounded-xl border border-border bg-panel;
+    box-shadow: var(--shadow-card);
   }
 
-  /* Chips / badges */
+  /* ── Badges ── */
   .badge {
-    @apply inline-flex items-center gap-1 rounded-full border border-border-strong bg-bg px-2 py-0.5 text-[11px] font-medium text-muted;
+    @apply inline-flex items-center gap-1 rounded-full border border-border-strong bg-bg px-2 py-0.5 text-[11px] font-medium text-secondary;
   }
   .badge-brand {
-    @apply border-brand/30 bg-brand/10 text-brand;
+    @apply border-brand/25 bg-brand/10 text-brand;
+  }
+  .badge-danger {
+    @apply border-danger/30 bg-danger/10 text-danger;
   }
 
-  /* Section title */
+  /* ── Alerts ── */
+  .alert-danger {
+    @apply rounded-lg border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-[13px] text-danger;
+  }
+
   .h-title {
     @apply text-base font-medium text-fg;
   }
 
-  /* Data grid (Supabase Table Editor uslubi) */
+  /* ── Data grid (Table Editor uslubi) ── */
   .grid-wrap {
-    @apply overflow-auto rounded-lg border border-border bg-bg;
+    @apply overflow-auto rounded-xl border border-border bg-panel;
+    box-shadow: var(--shadow-card);
   }
   table.grid {
     @apply w-full border-collapse text-[13px];
-    /* `grid` class Tailwind'ning display:grid utilitasi bilan to'qnashadi —
-       jadval haqiqiy <table> bo'lib qolishi uchun display'ni qaytaramiz. */
     display: table;
   }
   table.grid thead th {
-    @apply sticky top-0 z-10 whitespace-nowrap border-b border-r border-border bg-panel px-3 py-2 text-left font-medium text-muted;
+    @apply sticky top-0 z-10 whitespace-nowrap border-b border-border bg-surface px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide text-faint;
   }
   table.grid tbody td {
-    @apply whitespace-nowrap border-b border-r border-border/60 px-3 py-1.5 font-mono text-[12px] text-fg/90;
+    @apply whitespace-nowrap border-b border-border/60 px-3 py-2 font-mono text-[12px] text-secondary;
+  }
+  table.grid tbody tr {
+    @apply transition-colors;
+  }
+  table.grid tbody tr:last-child td {
+    @apply border-b-0;
   }
   table.grid tbody tr:hover {
-    @apply bg-hover/50;
+    @apply bg-hover/60;
   }
 
   .kbd {
-    @apply rounded border border-border-strong bg-bg px-1.5 py-0.5 font-mono text-[11px] text-muted;
+    @apply rounded-md border border-border-strong bg-bg px-1.5 py-0.5 font-mono text-[11px] text-muted;
   }
   .col-type {
     @apply ml-1.5 font-mono text-[10px] font-normal uppercase tracking-wide text-faint;
+  }
+  .skeleton {
+    @apply animate-pulse rounded-md bg-hover;
+  }
+  .link {
+    @apply text-brand underline-offset-4 transition hover:underline;
   }
 }

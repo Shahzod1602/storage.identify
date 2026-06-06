@@ -11,7 +11,7 @@ export default function OverviewPage() {
   if (error)
     return (
       <Scroll>
-        <div className="card border-red-500/30 p-4 text-red-400">{error}</div>
+        <div className="alert-danger">{error}</div>
       </Scroll>
     );
   if (!keys)

@@ -10,6 +10,7 @@ import {
   RefreshCw,
   Shield,
   User as UserIcon,
+  X,
 } from "lucide-react";
 import {
   getMe,
@@ -19,6 +20,7 @@ import {
   type PlatformUser,
 } from "@/lib/api";
 import { useRequireAuth } from "@/components/auth-guard";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function UsersPage() {
   const ready = useRequireAuth();
@@ -89,22 +91,29 @@ export default function UsersPage() {
   if (!ready) return null;
 
   return (
-    <div className="min-h-screen">
-      <header className="border-b border-border bg-bg">
+    <div className="min-h-screen bg-bg">
+      <header className="sticky top-0 z-20 border-b border-border bg-surface/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-6 py-3">
           <Link href="/dashboard" className="btn-ghost">
             <ArrowLeft size={15} /> Loyihalar
           </Link>
           <span className="text-faint">/</span>
           <span className="font-medium">Foydalanuvchilar</span>
+          <div className="ml-auto">
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 
       <div className="mx-auto max-w-5xl px-6 py-10">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex items-end justify-between gap-4">
           <div>
-            <h1 className="text-xl font-medium">Foydalanuvchilar</h1>
-            <p className="mt-1 text-sm text-muted">{users.length} ta</p>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Foydalanuvchilar
+            </h1>
+            <p className="mt-1 text-sm text-secondary">
+              {users.length} ta · platforma kirish huquqi (RBAC)
+            </p>
           </div>
           <div className="flex gap-2">
             <button className="btn-default" onClick={reload}>
@@ -120,9 +129,9 @@ export default function UsersPage() {
         </div>
 
         {adding && (
-          <div className="card mb-5 flex flex-wrap items-end gap-3 p-4">
-            <div className="flex-1">
-              <label className="mb-1 block text-xs text-faint">Email</label>
+          <div className="card mb-5 animate-fade-in flex flex-wrap items-start gap-3 p-4">
+            <div className="min-w-[200px] flex-1">
+              <label className="label">Email</label>
               <input
                 className="input"
                 type="email"
@@ -132,13 +141,13 @@ export default function UsersPage() {
                 onKeyDown={(e) => e.key === "Enter" && add()}
               />
               {email.length > 0 && !EMAIL_RE.test(email.trim()) && (
-                <p className="mt-1 text-xs text-red-400">
+                <p className="mt-1.5 text-xs text-danger">
                   Email manzili noto'g'ri
                 </p>
               )}
             </div>
-            <div className="flex-1">
-              <label className="mb-1 block text-xs text-faint">Parol</label>
+            <div className="min-w-[160px] flex-1">
+              <label className="label">Parol</label>
               <input
                 className="input"
                 type="password"
@@ -148,52 +157,57 @@ export default function UsersPage() {
                 onKeyDown={(e) => e.key === "Enter" && add()}
               />
               {password.length > 0 && password.length < 6 && (
-                <p className="mt-1 text-xs text-red-400">
-                  Kamida 6 belgi
-                </p>
+                <p className="mt-1.5 text-xs text-danger">Kamida 6 belgi</p>
               )}
             </div>
             <div>
-              <label className="mb-1 block text-xs text-faint">Role</label>
+              <label className="label">Rol</label>
               <select
                 className="input"
                 value={role}
-                onChange={(e) => setRole(e.target.value as "user" | "super_admin")}
+                onChange={(e) =>
+                  setRole(e.target.value as "user" | "super_admin")
+                }
               >
                 <option value="user">user</option>
                 <option value="super_admin">super_admin</option>
               </select>
             </div>
-            <button
-              className="btn"
-              onClick={add}
-              disabled={!EMAIL_RE.test(email.trim()) || password.length < 6}
-            >
-              Yaratish
-            </button>
-            <button className="btn-ghost" onClick={closeForm}>
-              Bekor
-            </button>
+            <div className="flex items-center gap-2 self-end pb-0.5">
+              <button
+                className="btn"
+                onClick={add}
+                disabled={!EMAIL_RE.test(email.trim()) || password.length < 6}
+              >
+                Yaratish
+              </button>
+              <button className="btn-ghost !px-1.5" onClick={closeForm}>
+                <X size={16} />
+              </button>
+            </div>
           </div>
         )}
 
-        {error && (
-          <div className="card mb-5 border-red-500/30 bg-red-500/5 p-3 text-sm text-red-400">
-            {error}
-          </div>
-        )}
+        {error && <div className="alert-danger mb-5">{error}</div>}
 
         <div className="grid-wrap">
           <table className="grid">
             <thead>
               <tr>
                 <th className="w-full">Email</th>
-                <th className="whitespace-nowrap">Role</th>
+                <th className="whitespace-nowrap">Rol</th>
                 <th className="whitespace-nowrap">Yaratilgan</th>
                 <th className="whitespace-nowrap !text-right">Amallar</th>
               </tr>
             </thead>
             <tbody>
+              {users.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="!py-12 text-center text-faint">
+                    Foydalanuvchi yo'q
+                  </td>
+                </tr>
+              )}
               {users.map((u) => (
                 <tr key={u.id}>
                   <td className="font-sans text-fg">{u.email}</td>
@@ -215,7 +229,7 @@ export default function UsersPage() {
                   <td className="text-right">
                     {u.role !== "super_admin" && (
                       <button
-                        className="btn-ghost btn-xs"
+                        className="btn-ghost btn-xs text-faint hover:text-danger"
                         onClick={() => remove(u)}
                         title="O'chirish"
                       >

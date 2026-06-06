@@ -11,7 +11,7 @@ function RichText({ text }: { text: string }) {
           return (
             <code
               key={i}
-              className="rounded bg-black/40 px-1.5 py-0.5 font-mono text-[12.5px] text-brand"
+              className="rounded-md border border-brand/20 bg-brand/10 px-1.5 py-0.5 font-mono text-[12.5px] text-brand"
             >
               {p.slice(1, -1)}
             </code>
@@ -19,7 +19,7 @@ function RichText({ text }: { text: string }) {
         }
         if (p.startsWith("**") && p.endsWith("**")) {
           return (
-            <strong key={i} className="font-medium text-fg">
+            <strong key={i} className="font-semibold text-fg">
               {p.slice(2, -2)}
             </strong>
           );
@@ -32,15 +32,20 @@ function RichText({ text }: { text: string }) {
 
 export function DocRenderer({ doc }: { doc: DocPage }) {
   return (
-    <article className="mx-auto max-w-3xl">
-      <h1 className="text-3xl font-semibold tracking-tight">{doc.title}</h1>
-      <p className="mt-3 text-lg text-muted">{doc.description}</p>
+    <article className="mx-auto max-w-3xl animate-fade-in">
+      <h1 className="text-balance text-4xl font-semibold tracking-[-0.02em]">
+        {doc.title}
+      </h1>
+      <p className="mt-3 text-pretty text-lg leading-relaxed text-secondary">
+        {doc.description}
+      </p>
+      <hr className="mt-8 border-border" />
 
       {doc.sections.map((s, i) => (
-        <section key={i} className="mt-10">
-          <h2 className="text-xl font-medium">{s.heading}</h2>
+        <section key={i} className="mt-10 scroll-mt-24">
+          <h2 className="text-xl font-semibold tracking-tight">{s.heading}</h2>
           {s.body.map((p, j) => (
-            <p key={j} className="mt-3 leading-relaxed text-muted">
+            <p key={j} className="mt-3 leading-relaxed text-secondary">
               <RichText text={p} />
             </p>
           ))}
@@ -49,6 +54,10 @@ export function DocRenderer({ doc }: { doc: DocPage }) {
           ))}
         </section>
       ))}
+
+      <div className="mt-16 flex items-center justify-between border-t border-border pt-6 text-sm text-secondary">
+        <span>Savol bormi? Hujjatlarni GitHub'da yaxshilashga yordam bering.</span>
+      </div>
     </article>
   );
 }

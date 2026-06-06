@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Github } from "lucide-react";
 import { DocsSidebar } from "@/components/docs/docs-sidebar";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function DocsLayout({
   children,
@@ -8,20 +9,23 @@ export default function DocsLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen">
-      <nav className="sticky top-0 z-20 border-b border-border bg-surface/90 backdrop-blur">
+    <div className="min-h-screen bg-bg">
+      <nav className="sticky top-0 z-30 border-b border-border/70 bg-bg/75 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
           <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2 font-semibold">
-              <span className="grid h-7 w-7 place-items-center rounded-md bg-brand text-sm font-bold text-black">
+            <Link
+              href="/"
+              className="flex items-center gap-2 font-semibold tracking-tight"
+            >
+              <span className="grid h-7 w-7 place-items-center rounded-lg bg-brand text-sm font-bold text-brand-fg shadow-sm">
                 s
               </span>
               storagedb
             </Link>
             <span className="text-faint">/</span>
-            <span className="text-sm text-muted">Docs</span>
+            <span className="text-sm text-secondary">Hujjatlar</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <a
               href="https://github.com/Shahzod1602/storage.identify"
               target="_blank"
@@ -29,6 +33,7 @@ export default function DocsLayout({
             >
               <Github size={15} /> GitHub
             </a>
+            <ThemeToggle />
             <Link href="/dashboard" className="btn">
               Dashboard <ArrowRight size={15} />
             </Link>
@@ -36,8 +41,8 @@ export default function DocsLayout({
         </div>
       </nav>
 
-      <div className="mx-auto flex max-w-6xl gap-10 px-6 py-10">
-        <aside className="hidden w-52 shrink-0 lg:block">
+      <div className="mx-auto flex max-w-6xl gap-12 px-6 py-12">
+        <aside className="hidden w-56 shrink-0 lg:block">
           <div className="sticky top-24">
             <DocsSidebar />
           </div>

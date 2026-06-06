@@ -8,7 +8,7 @@ interface DataGridProps {
 export function DataGrid({ rows, types, emptyHint }: DataGridProps) {
   if (!rows || rows.length === 0) {
     return (
-      <div className="grid place-items-center rounded-lg border border-dashed border-border py-16 text-sm text-faint">
+      <div className="grid place-items-center rounded-xl border border-dashed border-border-strong py-16 text-sm text-faint">
         {emptyHint ?? "Ma'lumot yo'q."}
       </div>
     );

@@ -115,7 +115,7 @@ export default function TablesPage() {
   return (
     <div className="flex h-full">
       {/* Table list */}
-      <div className="flex w-60 shrink-0 flex-col border-r border-border bg-bg">
+      <div className="flex w-60 shrink-0 flex-col border-r border-border bg-surface">
         <div className="flex items-center justify-between px-3 py-3">
           <span className="text-[11px] font-medium uppercase tracking-wide text-faint">
             schema: public
@@ -138,10 +138,10 @@ export default function TablesPage() {
             <button
               key={t}
               onClick={() => open(t)}
-              className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] transition ${
+              className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition ${
                 active === t
-                  ? "bg-hover text-brand"
-                  : "text-muted hover:bg-hover hover:text-fg"
+                  ? "bg-brand/10 font-medium text-brand"
+                  : "text-secondary hover:bg-hover hover:text-fg"
               }`}
             >
               <Table2 size={14} className="shrink-0" />
@@ -179,9 +179,7 @@ export default function TablesPage() {
             </div>
 
             {error && (
-              <div className="m-4 card border-red-500/30 bg-red-500/5 p-3 text-xs text-red-400">
-                {error}
-              </div>
+              <div className="m-4 alert-danger text-xs">{error}</div>
             )}
 
             <div className="flex min-h-0 flex-1">
@@ -190,7 +188,7 @@ export default function TablesPage() {
               </div>
 
               {showInsert && (
-                <div className="w-80 shrink-0 overflow-auto border-l border-border bg-bg p-4">
+                <div className="w-80 shrink-0 overflow-auto border-l border-border bg-surface p-4">
                   <div className="mb-1 flex items-center justify-between">
                     <span className="text-sm font-medium">Yangi qator</span>
                     <button

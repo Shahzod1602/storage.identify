@@ -132,11 +132,7 @@ export default function AuthPage() {
           </div>
         )}
 
-        {error && (
-          <div className="card mb-5 border-red-500/30 bg-red-500/5 p-3 text-sm text-red-400">
-            {error}
-          </div>
-        )}
+        {error && <div className="alert-danger mb-5">{error}</div>}
 
         <div className="grid-wrap">
           <table className="grid">
@@ -169,9 +165,7 @@ export default function AuthPage() {
                   </td>
                   <td>
                     {u.banned_until ? (
-                      <span className="badge border-red-500/40 text-red-400">
-                        bloklangan
-                      </span>
+                      <span className="badge badge-danger">bloklangan</span>
                     ) : (
                       <span className="badge badge-brand">faol</span>
                     )}
@@ -193,7 +187,7 @@ export default function AuthPage() {
                         title={u.banned_until ? "Blokdan chiqarish" : "Bloklash"}
                         onClick={() => toggleBan(u)}
                       >
-                        <Ban size={13} className={u.banned_until ? "text-red-400" : ""} />
+                        <Ban size={13} className={u.banned_until ? "text-danger" : ""} />
                       </button>
                       <button
                         className="btn-ghost btn-xs"

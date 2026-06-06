@@ -144,7 +144,7 @@ export default function SqlPage() {
   return (
     <div className="flex h-full">
       {/* Sidebar: saqlangan so'rovlar */}
-      <div className="flex w-60 shrink-0 flex-col border-r border-border bg-bg">
+      <div className="flex w-60 shrink-0 flex-col border-r border-border bg-surface">
         <div className="p-3">
           <button
             className="btn-default w-full justify-start"
@@ -244,7 +244,7 @@ export default function SqlPage() {
           />
           <div className="min-h-0 flex-1 overflow-auto bg-surface p-4">
             {error ? (
-              <div className="card border-red-500/30 bg-red-500/5 p-3 font-mono text-xs text-red-400">
+              <div className="alert-danger whitespace-pre-wrap font-mono text-xs">
                 {error}
               </div>
             ) : rows === null ? (
