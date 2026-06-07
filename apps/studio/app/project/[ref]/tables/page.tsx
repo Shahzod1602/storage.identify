@@ -14,6 +14,7 @@ import { useProject } from "@/components/project-context";
 import { metaQuery, GATEWAY } from "@/lib/api";
 import { DataGrid } from "@/components/data-grid";
 import { toast, confirmDialog } from "@/components/feedback";
+import { useT } from "@/lib/i18n/client";
 
 interface Column {
   name: string;
@@ -31,6 +32,7 @@ function qIdent(name: string): string {
 
 export default function TablesPage() {
   const { ref, keys } = useProject();
+  const t = useT();
   const [tables, setTables] = useState<string[]>([]);
   const [active, setActive] = useState<string | null>(null);
   const [columns, setColumns] = useState<Column[]>([]);
@@ -163,21 +165,21 @@ export default function TablesPage() {
     setForm({});
     setShowInsert(false);
     setError(null);
-    toast.success("Qator qo'shildi");
+    toast.success(t.tables.added);
     await goPage(0);
   }
 
   async function deleteRow(row: Record<string, unknown>) {
     if (!keys || !active) return;
     if (pkCols.length === 0) {
-      toast.error("Bu jadvalda primary key yo'q — qatorni UI'dan o'chirib bo'lmaydi");
+      toast.error(t.tables.noPk);
       return;
     }
     const ok = await confirmDialog({
-      title: "Qatorni o'chirish",
-      message: "Bu qator butunlay o'chiriladi.",
+      title: t.tables.deleteTitle,
+      message: t.tables.deleteMsg,
       danger: true,
-      confirmLabel: "O'chirish",
+      confirmLabel: t.common.delete,
     });
     if (!ok) return;
     const params = pkCols
@@ -188,10 +190,12 @@ export default function TablesPage() {
       { method: "DELETE", headers: { apikey: keys.service_key } },
     );
     if (!res.ok) {
-      toast.error((await res.json().catch(() => ({}))).error ?? "O'chirishda xato");
+      toast.error(
+        (await res.json().catch(() => ({}))).error ?? `HTTP ${res.status}`,
+      );
       return;
     }
-    toast.success("Qator o'chirildi");
+    toast.success(t.tables.deleted);
     // Oxirgi sahifadagi yagona qator o'chsa — oldingi sahifaga qaytamiz.
     const lastOnPage = rows.length === 1 && page > 0;
     await goPage(lastOnPage ? page - 1 : page);
@@ -211,7 +215,7 @@ export default function TablesPage() {
       <div className="flex w-full shrink-0 flex-col border-b border-border bg-surface md:w-60 md:border-b-0 md:border-r">
         <div className="flex items-center justify-between px-3 py-3">
           <span className="text-[11px] font-medium uppercase tracking-wide text-faint">
-            schema: public
+            {t.tables.schema}
           </span>
           <button
             className="text-faint transition hover:text-fg"
@@ -223,9 +227,7 @@ export default function TablesPage() {
         </div>
         <div className="max-h-44 overflow-auto px-2 pb-2 md:max-h-none md:flex-1">
           {tables.length === 0 && (
-            <p className="px-2 py-2 text-xs text-faint">
-              Jadval yo'q — SQL Editor'da yarating
-            </p>
+            <p className="px-2 py-2 text-xs text-faint">{t.tables.noTables}</p>
           )}
           {tables.map((t) => (
             <button
@@ -250,9 +252,7 @@ export default function TablesPage() {
           <div className="grid flex-1 place-items-center text-center">
             <div>
               <Database size={28} className="mx-auto mb-3 text-faint" />
-              <p className="text-sm text-secondary">
-                Chapdan jadval tanlang yoki SQL Editor'da yarating
-              </p>
+              <p className="text-sm text-secondary">{t.tables.selectHint}</p>
             </div>
           </div>
         ) : (
@@ -261,10 +261,10 @@ export default function TablesPage() {
               <div className="flex items-center gap-2 text-[13px]">
                 <Table2 size={15} className="text-brand" />
                 <span className="font-medium">{active}</span>
-                <span className="text-faint">· {total} qator</span>
+                <span className="text-faint">· {t.tables.rows(total)}</span>
               </div>
               <button className="btn" onClick={() => setShowInsert((v) => !v)}>
-                <Plus size={14} /> Qator qo'shish
+                <Plus size={14} /> {t.tables.addRow}
               </button>
             </div>
 
@@ -284,7 +284,11 @@ export default function TablesPage() {
                 {total > PAGE_SIZE && (
                   <div className="flex h-10 shrink-0 items-center justify-between border-t border-border px-4 text-xs text-secondary">
                     <span>
-                      {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} / {total}
+                      {t.tables.page(
+                        page * PAGE_SIZE + 1,
+                        Math.min((page + 1) * PAGE_SIZE, total),
+                        total,
+                      )}
                     </span>
                     <div className="flex items-center gap-1">
                       <button
@@ -292,7 +296,7 @@ export default function TablesPage() {
                         disabled={page === 0}
                         onClick={() => goPage(page - 1)}
                       >
-                        <ChevronLeft size={14} /> Oldingi
+                        <ChevronLeft size={14} /> {t.common.prev}
                       </button>
                       <span className="px-1 tabular-nums">
                         {page + 1} / {pageCount}
@@ -302,7 +306,7 @@ export default function TablesPage() {
                         disabled={(page + 1) * PAGE_SIZE >= total}
                         onClick={() => goPage(page + 1)}
                       >
-                        Keyingi <ChevronRight size={14} />
+                        {t.common.next} <ChevronRight size={14} />
                       </button>
                     </div>
                   </div>
@@ -312,7 +316,7 @@ export default function TablesPage() {
               {showInsert && (
                 <div className="w-full shrink-0 overflow-auto border-t border-border bg-surface p-4 md:w-80 md:border-l md:border-t-0">
                   <div className="mb-1 flex items-center justify-between">
-                    <span className="text-sm font-medium">Yangi qator</span>
+                    <span className="text-sm font-medium">{t.tables.newRow}</span>
                     <button
                       className="text-faint transition hover:text-fg"
                       onClick={() => setShowInsert(false)}
@@ -321,10 +325,7 @@ export default function TablesPage() {
                       <X size={15} />
                     </button>
                   </div>
-                  <p className="mb-3 text-xs text-faint">
-                    Bo'sh qoldirilgan maydon uchun ustunning default qiymati yoki
-                    NULL ishlatiladi.
-                  </p>
+                  <p className="mb-3 text-xs text-faint">{t.tables.defaultHint}</p>
                   <div className="space-y-3">
                     {editableCols.map((c) => (
                       <div key={c.name}>
@@ -357,12 +358,11 @@ export default function TablesPage() {
                       onClick={insertRow}
                       disabled={missingRequired}
                     >
-                      Saqlash
+                      {t.common.save}
                     </button>
                     {missingRequired && (
                       <p className="text-center text-xs text-faint">
-                        <span className="text-danger">*</span> majburiy maydonlarni
-                        to'ldiring
+                        <span className="text-danger">*</span> {t.tables.requiredFill}
                       </p>
                     )}
                   </div>

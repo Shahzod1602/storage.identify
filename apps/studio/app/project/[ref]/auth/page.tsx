@@ -5,6 +5,7 @@ import { UserPlus, RefreshCw, Mail, X, Check, Ban, Trash2 } from "lucide-react";
 import { useProject } from "@/components/project-context";
 import { metaQuery, GATEWAY } from "@/lib/api";
 import { toast, confirmDialog } from "@/components/feedback";
+import { useT } from "@/lib/i18n/client";
 
 interface AuthUser {
   id: string;
@@ -16,6 +17,7 @@ interface AuthUser {
 
 export default function AuthPage() {
   const { ref, keys } = useProject();
+  const t = useT();
   const [users, setUsers] = useState<AuthUser[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -63,7 +65,7 @@ export default function AuthPage() {
     setEmail("");
     setPassword("");
     setAdding(false);
-    toast.success("Foydalanuvchi qo'shildi");
+    toast.success(t.authPage.added);
     await reload();
   }
 
@@ -75,20 +77,20 @@ export default function AuthPage() {
       body: JSON.stringify({ banned: !u.banned_until }),
     });
     if (!res.ok) {
-      toast.error("Amal bajarilmadi");
+      toast.error(t.authPage.actionFail);
       return;
     }
-    toast.success(u.banned_until ? "Blokdan chiqarildi" : "Bloklandi");
+    toast.success(u.banned_until ? t.authPage.unbannedToast : t.authPage.bannedToast);
     await reload();
   }
 
   async function deleteUser(u: AuthUser) {
     if (!keys) return;
     const ok = await confirmDialog({
-      title: "Foydalanuvchini o'chirish",
-      message: `${u.email} butunlay o'chiriladi.`,
+      title: t.authPage.deleteTitle,
+      message: t.authPage.deleteMsg(u.email),
       danger: true,
-      confirmLabel: "O'chirish",
+      confirmLabel: t.common.delete,
     });
     if (!ok) return;
     const res = await fetch(adminUrl(u.id), {
@@ -96,10 +98,10 @@ export default function AuthPage() {
       headers: { apikey: keys.service_key },
     });
     if (!res.ok) {
-      toast.error("O'chirishda xato");
+      toast.error(t.authPage.actionFail);
       return;
     }
-    toast.success("Foydalanuvchi o'chirildi");
+    toast.success(t.authPage.deleted);
     await reload();
   }
 
@@ -108,17 +110,17 @@ export default function AuthPage() {
       <div className="mx-auto max-w-5xl px-8 py-8">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-medium">Authentication</h1>
+            <h1 className="text-xl font-medium">{t.authPage.title}</h1>
             <p className="mt-1 text-sm text-muted">
-              {users.length} foydalanuvchi
+              {t.authPage.subtitle(users.length)}
             </p>
           </div>
           <div className="flex gap-2">
             <button className="btn-default" onClick={reload}>
-              <RefreshCw size={14} /> Yangilash
+              <RefreshCw size={14} /> {t.common.refresh}
             </button>
             <button className="btn" onClick={() => setAdding((v) => !v)}>
-              <UserPlus size={14} /> Foydalanuvchi qo'shish
+              <UserPlus size={14} /> {t.authPage.addUser}
             </button>
           </div>
         </div>
@@ -126,7 +128,7 @@ export default function AuthPage() {
         {adding && (
           <div className="card mb-5 flex flex-wrap items-end gap-3 p-4">
             <div className="flex-1">
-              <label className="mb-1 block text-xs text-faint">Email</label>
+              <label className="mb-1 block text-xs text-faint">{t.authPage.email}</label>
               <input
                 className="input"
                 placeholder="user@example.com"
@@ -135,7 +137,7 @@ export default function AuthPage() {
               />
             </div>
             <div className="flex-1">
-              <label className="mb-1 block text-xs text-faint">Parol</label>
+              <label className="mb-1 block text-xs text-faint">{t.authPage.password}</label>
               <input
                 className="input"
                 type="password"
@@ -145,7 +147,7 @@ export default function AuthPage() {
               />
             </div>
             <button className="btn" onClick={addUser}>
-              Yaratish
+              {t.authPage.create}
             </button>
             <button className="btn-ghost" onClick={() => setAdding(false)}>
               <X size={15} />
@@ -159,19 +161,19 @@ export default function AuthPage() {
           <table className="grid">
             <thead>
               <tr>
-                <th>UID</th>
-                <th>Email</th>
-                <th>Holat</th>
-                <th>Tasdiqlangan</th>
-                <th>Yaratilgan</th>
-                <th>Amallar</th>
+                <th>{t.authPage.uid}</th>
+                <th>{t.authPage.email}</th>
+                <th>{t.authPage.status}</th>
+                <th>{t.authPage.confirmed}</th>
+                <th>{t.authPage.createdAt}</th>
+                <th>{t.authPage.actions}</th>
               </tr>
             </thead>
             <tbody>
               {users.length === 0 && (
                 <tr>
                   <td colSpan={6} className="py-10 text-center text-faint">
-                    Foydalanuvchi yo'q
+                    {t.authPage.noUsers}
                   </td>
                 </tr>
               )}
@@ -186,9 +188,9 @@ export default function AuthPage() {
                   </td>
                   <td>
                     {u.banned_until ? (
-                      <span className="badge badge-danger">bloklangan</span>
+                      <span className="badge badge-danger">{t.authPage.banned}</span>
                     ) : (
-                      <span className="badge badge-brand">faol</span>
+                      <span className="badge badge-brand">{t.authPage.active}</span>
                     )}
                   </td>
                   <td>
@@ -205,14 +207,14 @@ export default function AuthPage() {
                     <div className="flex gap-1">
                       <button
                         className="btn-ghost btn-xs"
-                        title={u.banned_until ? "Blokdan chiqarish" : "Bloklash"}
+                        title={u.banned_until ? t.authPage.unban : t.authPage.ban}
                         onClick={() => toggleBan(u)}
                       >
                         <Ban size={13} className={u.banned_until ? "text-danger" : ""} />
                       </button>
                       <button
                         className="btn-ghost btn-xs"
-                        title="O'chirish"
+                        title={t.common.delete}
                         onClick={() => deleteUser(u)}
                       >
                         <Trash2 size={13} />

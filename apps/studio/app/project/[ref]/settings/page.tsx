@@ -5,9 +5,11 @@ import { ExternalLink, FileCode2, Copy, Check, Loader2 } from "lucide-react";
 import { useProject } from "@/components/project-context";
 import { GATEWAY, getTypes } from "@/lib/api";
 import { copyText, toast } from "@/components/feedback";
+import { useT } from "@/lib/i18n/client";
 
 export default function SettingsPage() {
   const { ref, keys, error } = useProject();
+  const t = useT();
   const [types, setTypes] = useState<string | null>(null);
   const [loadingTypes, setLoadingTypes] = useState(false);
   const [typesError, setTypesError] = useState<string | null>(null);
@@ -45,7 +47,7 @@ export default function SettingsPage() {
   if (!keys)
     return (
       <Scroll>
-        <p className="text-sm text-faint">Yuklanmoqda...</p>
+        <p className="text-sm text-faint">{t.common.loading}</p>
       </Scroll>
     );
 
@@ -54,21 +56,16 @@ export default function SettingsPage() {
   return (
     <Scroll>
       <div className="mb-8">
-        <h1 className="text-2xl font-medium">Sozlamalar</h1>
-        <p className="mt-1 text-sm text-muted">
-          API hujjatlari, turlar va loyiha ma'lumotlari
-        </p>
+        <h1 className="text-2xl font-medium">{t.settings.title}</h1>
+        <p className="mt-1 text-sm text-muted">{t.settings.subtitle}</p>
       </div>
 
       {/* API hujjatlari */}
       <section className="mb-6 card p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-medium">API hujjatlari (Swagger)</p>
-            <p className="mt-1 text-xs text-muted">
-              Loyiha jadvallari uchun avtomatik REST hujjatlari — interaktiv
-              sinab ko'rish bilan.
-            </p>
+            <p className="text-sm font-medium">{t.settings.apiDocs}</p>
+            <p className="mt-1 text-xs text-muted">{t.settings.apiDocsDesc}</p>
           </div>
           <a
             href={docsUrl}
@@ -76,7 +73,7 @@ export default function SettingsPage() {
             rel="noreferrer"
             className="btn-default shrink-0"
           >
-            <ExternalLink size={14} /> Ochish
+            <ExternalLink size={14} /> {t.settings.open}
           </a>
         </div>
       </section>
@@ -85,11 +82,8 @@ export default function SettingsPage() {
       <section className="mb-6 card p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-medium">TypeScript turlari</p>
-            <p className="mt-1 text-xs text-muted">
-              Jadval sxemasidan generatsiya qilingan tiplar — client kodda
-              ishlating.
-            </p>
+            <p className="text-sm font-medium">{t.settings.tsTypes}</p>
+            <p className="mt-1 text-xs text-muted">{t.settings.tsTypesDesc}</p>
           </div>
           <div className="flex shrink-0 gap-2">
             <button
@@ -102,7 +96,7 @@ export default function SettingsPage() {
               ) : (
                 <FileCode2 size={14} />
               )}
-              {types ? "Yangilash" : "Generatsiya"}
+              {types ? t.settings.regenerate : t.settings.generate}
             </button>
           </div>
         </div>
@@ -119,7 +113,7 @@ export default function SettingsPage() {
                 onClick={async () => {
                   if (await copyText(types)) {
                     setCopied(true);
-                    toast.success("Nusxa olindi");
+                    toast.success(t.common.copied);
                     setTimeout(() => setCopied(false), 1200);
                   }
                 }}
@@ -129,10 +123,10 @@ export default function SettingsPage() {
                 ) : (
                   <Copy size={13} />
                 )}
-                Nusxa
+                {t.common.copy}
               </button>
               <button className="btn-ghost btn-xs" onClick={download}>
-                Yuklab olish
+                {t.settings.download}
               </button>
             </div>
             <pre className="max-h-80 overflow-auto rounded-md border border-border bg-bg p-4 font-mono text-xs leading-relaxed text-muted">
@@ -145,12 +139,12 @@ export default function SettingsPage() {
       {/* Loyiha ma'lumotlari */}
       <section className="card">
         <div className="border-b border-border px-5 py-3 text-sm font-medium">
-          Loyiha
+          {t.settings.project}
         </div>
         <div className="p-5">
-          <Row label="Nomi" value={keys.name} />
-          <Row label="ref" value={ref} mono />
-          <Row label="API URL" value={`${GATEWAY}/v1/${ref}`} mono />
+          <Row label={t.settings.name} value={keys.name} />
+          <Row label={t.settings.ref} value={ref} mono />
+          <Row label={t.settings.apiUrl} value={`${GATEWAY}/v1/${ref}`} mono />
         </div>
       </section>
     </Scroll>

@@ -5,9 +5,11 @@ import { Copy, Check, Eye, EyeOff } from "lucide-react";
 import { useProject } from "@/components/project-context";
 import { GATEWAY } from "@/lib/api";
 import { copyText, toast } from "@/components/feedback";
+import { useT } from "@/lib/i18n/client";
 
 export default function OverviewPage() {
   const { ref, keys, error } = useProject();
+  const t = useT();
 
   if (error)
     return (
@@ -18,7 +20,7 @@ export default function OverviewPage() {
   if (!keys)
     return (
       <Scroll>
-        <p className="text-sm text-faint">Yuklanmoqda...</p>
+        <p className="text-sm text-faint">{t.common.loading}</p>
       </Scroll>
     );
 
@@ -26,30 +28,28 @@ export default function OverviewPage() {
     <Scroll>
       <div className="mb-8">
         <h1 className="text-2xl font-medium">{keys.name}</h1>
-        <p className="mt-1 text-sm text-muted">
-          Loyiha ulanish ma'lumotlari va API kalitlari
-        </p>
+        <p className="mt-1 text-sm text-muted">{t.overview.subtitle}</p>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-3">
-        <Stat label="Postgres" value="ishlamoqda" dot />
-        <Stat label="Region" value="Local" />
-        <Stat label="ref" value={ref} mono />
+        <Stat label={t.overview.postgres} value={t.overview.running} dot />
+        <Stat label={t.overview.region} value={t.shell.local} />
+        <Stat label={t.overview.ref} value={ref} mono />
       </div>
 
       <section className="mt-6 card">
         <div className="border-b border-border px-5 py-3 text-sm font-medium">
-          Project API
+          {t.overview.projectApi}
         </div>
         <div className="p-5">
-          <Field label="API URL" value={`${GATEWAY}/v1/${ref}`} />
-          <Field label="anon (public) key" value={keys.anon_key} secret />
-          <Field label="service_role key" value={keys.service_key} secret />
+          <Field label={t.overview.apiUrl} value={`${GATEWAY}/v1/${ref}`} />
+          <Field label={t.overview.anonKey} value={keys.anon_key} secret />
+          <Field label={t.overview.serviceKey} value={keys.service_key} secret />
         </div>
       </section>
 
       <section className="mt-6 card p-5">
-        <p className="mb-3 text-sm font-medium">Tezkor boshlash</p>
+        <p className="mb-3 text-sm font-medium">{t.overview.quickstart}</p>
         <pre className="overflow-x-auto rounded-md border border-border bg-bg p-4 font-mono text-xs leading-relaxed text-muted">
           {`# REST
 curl "${GATEWAY}/v1/${ref}/rest/v1/<jadval>?select=*" \\
@@ -105,6 +105,7 @@ function Field({
   value: string;
   secret?: boolean;
 }) {
+  const t = useT();
   const [shown, setShown] = useState(!secret);
   const [copied, setCopied] = useState(false);
   return (
@@ -127,7 +128,7 @@ function Field({
           onClick={async () => {
             if (await copyText(value)) {
               setCopied(true);
-              toast.success("Nusxa olindi");
+              toast.success(t.common.copied);
               setTimeout(() => setCopied(false), 1200);
             }
           }}

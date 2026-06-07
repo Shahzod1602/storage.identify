@@ -11,12 +11,14 @@ import {
 } from "lucide-react";
 import { useProject } from "@/components/project-context";
 import { getMetrics, type ProjectMetrics } from "@/lib/api";
+import { useT } from "@/lib/i18n/client";
 
 const POLL_MS = 3000;
 const HISTORY = 40;
 
 export default function ReportsPage() {
   const { ref } = useProject();
+  const t = useT();
   const [m, setM] = useState<ProjectMetrics | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [latHist, setLatHist] = useState<number[]>([]);
@@ -55,57 +57,55 @@ export default function ReportsPage() {
     <div className="h-full overflow-auto">
       <div className="mx-auto max-w-5xl px-8 py-8">
         <div className="mb-1 flex items-center justify-between">
-          <h1 className="text-xl font-medium">Hisobotlar</h1>
+          <h1 className="text-xl font-medium">{t.reports.title}</h1>
           <span className="flex items-center gap-1.5 text-xs text-faint">
             <span className="h-2 w-2 animate-pulse rounded-full bg-brand" />
-            jonli ({POLL_MS / 1000}s)
+            {t.reports.live(POLL_MS / 1000)}
           </span>
         </div>
-        <p className="mb-6 text-sm text-muted">
-          Loyiha resurslari va so'rov statistikasi
-        </p>
+        <p className="mb-6 text-sm text-muted">{t.reports.subtitle}</p>
 
         {error && <div className="alert-danger mb-5">{error}</div>}
 
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
           <Stat
             icon={Activity}
-            label="So'rovlar (jami)"
+            label={t.reports.requests}
             value={m?.requests ?? 0}
           />
           <Stat
             icon={AlertTriangle}
-            label="Xatolar"
+            label={t.reports.errors}
             value={m?.errors ?? 0}
             danger={(m?.errors ?? 0) > 0}
           />
           <Stat
             icon={Gauge}
-            label="O'rtacha kechikish"
+            label={t.reports.avgLatency}
             value={`${m?.avgLatencyMs ?? 0} ms`}
           />
-          <Stat icon={Gauge} label="p95 kechikish" value={`${m?.p95LatencyMs ?? 0} ms`} />
+          <Stat icon={Gauge} label={t.reports.p95} value={`${m?.p95LatencyMs ?? 0} ms`} />
           <Stat
             icon={Database}
-            label="DB hajmi"
+            label={t.reports.dbSize}
             value={formatBytes(m?.dbBytes ?? 0)}
           />
           <Stat
             icon={Radio}
-            label="Realtime ulanishlar"
+            label={t.reports.realtimeConns}
             value={m?.realtimeConnections ?? 0}
           />
         </div>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
           <ChartCard
-            title="So'rovlar / interval"
+            title={t.reports.reqInterval}
             data={reqHist}
             color="#10b981"
             unit=""
           />
           <ChartCard
-            title="O'rtacha kechikish (ms)"
+            title={t.reports.latencyMs}
             data={latHist}
             color="#0ea5e9"
             unit="ms"
@@ -115,8 +115,7 @@ export default function ReportsPage() {
         <div className="mt-6 card flex items-center gap-3 p-4 text-sm text-muted">
           <Plug size={16} className="text-brand" />
           <span>
-            Server CPU/RAM, tarixiy grafiklar va alertlar uchun{" "}
-            <span className="text-fg">Grafana</span>'ni ishga tushiring:{" "}
+            {t.reports.grafanaNote}{" "}
             <code className="kbd">docker compose -f docker/docker-compose.observability.yml up -d</code>{" "}
             → <span className="text-fg">localhost:3002</span>
           </span>
@@ -193,7 +192,7 @@ function Sparkline({
   if (data.length < 2) {
     return (
       <div className="grid h-[36px] place-items-center text-xs text-faint">
-        ma'lumot yig'ilmoqda...
+        <Collecting />
       </div>
     );
   }
@@ -212,6 +211,11 @@ function Sparkline({
       />
     </svg>
   );
+}
+
+function Collecting() {
+  const t = useT();
+  return <>{t.reports.collecting}</>;
 }
 
 function formatBytes(b: number): string {

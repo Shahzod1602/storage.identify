@@ -14,6 +14,7 @@ import {
 import { useProject } from "@/components/project-context";
 import { metaQuery, GATEWAY } from "@/lib/api";
 import { toast, confirmDialog, promptDialog } from "@/components/feedback";
+import { useT } from "@/lib/i18n/client";
 
 interface Bucket {
   id: string;
@@ -28,6 +29,7 @@ interface ObjectRow {
 
 export default function StoragePage() {
   const { ref, keys } = useProject();
+  const t = useT();
   const [buckets, setBuckets] = useState<Bucket[]>([]);
   const [active, setActive] = useState<string | null>(null);
   const [objects, setObjects] = useState<ObjectRow[]>([]);
@@ -78,11 +80,11 @@ export default function StoragePage() {
   async function newBucket() {
     if (!keys) return;
     const res = await promptDialog({
-      title: "Yangi bucket",
-      label: "Bucket nomi",
-      placeholder: "masalan: rasmlar",
-      toggleLabel: "Ommaviy (public) — hammaga ochiq",
-      confirmLabel: "Yaratish",
+      title: t.storage.newBucketTitle,
+      label: t.storage.bucketName,
+      placeholder: t.storage.bucketPlaceholder,
+      toggleLabel: t.storage.publicToggle,
+      confirmLabel: t.common.create,
     });
     if (!res) return;
     const r = await fetch(`${GATEWAY}/v1/${ref}/storage/v1/bucket`, {
@@ -91,11 +93,11 @@ export default function StoragePage() {
       body: JSON.stringify({ id: res.value, public: res.toggle }),
     });
     if (!r.ok) {
-      const msg = (await r.json().catch(() => ({}))).error ?? "Bucket yaratilmadi";
+      const msg = (await r.json().catch(() => ({}))).error ?? t.storage.bucketFail;
       toast.error(msg);
       return;
     }
-    toast.success(`"${res.value}" bucket yaratildi`);
+    toast.success(t.storage.bucketCreated(res.value));
     await loadBuckets();
     setActive(res.value);
   }
@@ -118,10 +120,10 @@ export default function StoragePage() {
         },
       );
       if (!res.ok) {
-        const msg = (await res.json().catch(() => ({}))).error ?? "Yuklash xatosi";
+        const msg = (await res.json().catch(() => ({}))).error ?? `HTTP ${res.status}`;
         toast.error(msg);
       } else {
-        toast.success(`"${file.name}" yuklandi`);
+        toast.success(t.storage.uploaded(file.name));
         await loadObjects(active);
       }
     } finally {
@@ -133,10 +135,10 @@ export default function StoragePage() {
   async function deleteObject(name: string) {
     if (!keys || !active) return;
     const ok = await confirmDialog({
-      title: "Faylni o'chirish",
-      message: `"${name}" butunlay o'chiriladi.`,
+      title: t.storage.deleteTitle,
+      message: t.storage.deleteMsg(name),
       danger: true,
-      confirmLabel: "O'chirish",
+      confirmLabel: t.common.delete,
     });
     if (!ok) return;
     const res = await fetch(
@@ -144,10 +146,10 @@ export default function StoragePage() {
       { method: "DELETE", headers: { apikey: keys.service_key } },
     );
     if (!res.ok) {
-      toast.error("Faylni o'chirishda xato");
+      toast.error(t.storage.deleteFail);
       return;
     }
-    toast.success("Fayl o'chirildi");
+    toast.success(t.storage.deleted);
     await loadObjects(active);
   }
 
@@ -158,20 +160,20 @@ export default function StoragePage() {
       <div className="flex w-full shrink-0 flex-col border-b border-border bg-surface md:w-60 md:border-b-0 md:border-r">
         <div className="flex items-center justify-between px-3 py-3">
           <span className="text-[11px] font-medium uppercase tracking-wide text-faint">
-            Bucketlar
+            {t.storage.buckets}
           </span>
           <div className="flex gap-1">
             <button
               className="text-faint transition hover:text-fg"
               onClick={loadBuckets}
-              title="Yangilash"
+              title={t.common.refresh}
             >
               <RefreshCw size={13} />
             </button>
             <button
               className="text-faint transition hover:text-fg"
               onClick={newBucket}
-              title="Yangi bucket"
+              title={t.storage.newBucketTitle}
             >
               <FolderPlus size={14} />
             </button>
@@ -179,7 +181,7 @@ export default function StoragePage() {
         </div>
         <div className="max-h-40 overflow-auto px-2 pb-2 md:max-h-none md:flex-1">
           {buckets.length === 0 && (
-            <p className="px-2 py-2 text-xs text-faint">Bucket yo'q</p>
+            <p className="px-2 py-2 text-xs text-faint">{t.storage.noBuckets}</p>
           )}
           {buckets.map((b) => (
             <button
@@ -201,7 +203,7 @@ export default function StoragePage() {
       <div className="flex min-w-0 flex-1 flex-col">
         {!active ? (
           <div className="grid flex-1 place-items-center text-sm text-faint">
-            Bucket tanlang yoki yarating
+            {t.storage.selectBucket}
           </div>
         ) : (
           <>
@@ -210,7 +212,7 @@ export default function StoragePage() {
                 {bucket?.public ? <Globe size={14} /> : <Lock size={14} />}
                 <span className="font-medium">{active}</span>
                 <span className={`badge ${bucket?.public ? "badge-brand" : ""}`}>
-                  {bucket?.public ? "ommaviy" : "maxfiy"}
+                  {bucket?.public ? t.storage.public : t.storage.private}
                 </span>
                 <span className="text-faint">· {objects.length}</span>
               </div>
@@ -219,7 +221,7 @@ export default function StoragePage() {
                 onClick={() => fileRef.current?.click()}
                 disabled={uploading}
               >
-                <Upload size={14} /> {uploading ? "Yuklanmoqda…" : "Yuklash"}
+                <Upload size={14} /> {uploading ? t.storage.uploading : t.storage.upload}
               </button>
               <input
                 ref={fileRef}
@@ -236,7 +238,7 @@ export default function StoragePage() {
             <div className="flex-1 overflow-auto p-2">
               {objects.length === 0 ? (
                 <div className="grid place-items-center py-16 text-sm text-faint">
-                  Fayl yo'q — "Yuklash" bilan qo'shing
+                  {t.storage.noFiles}
                 </div>
               ) : (
                 objects.map((o) => (
@@ -257,7 +259,7 @@ export default function StoragePage() {
                         href={`${GATEWAY}/v1/${ref}/storage/v1/public/${active}/${encodeURIComponent(o.name)}`}
                         target="_blank"
                         className="text-faint transition hover:text-brand"
-                        title="Yuklab olish"
+                        title={t.storage.download}
                       >
                         <Download size={14} />
                       </a>
@@ -265,7 +267,7 @@ export default function StoragePage() {
                     <button
                       onClick={() => deleteObject(o.name)}
                       className="text-faint opacity-0 transition hover:text-danger group-hover:opacity-100"
-                      title="O'chirish"
+                      title={t.common.delete}
                     >
                       <Trash2 size={14} />
                     </button>

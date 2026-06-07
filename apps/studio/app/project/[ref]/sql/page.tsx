@@ -14,6 +14,7 @@ import { useProject } from "@/components/project-context";
 import { metaQuery } from "@/lib/api";
 import { DataGrid } from "@/components/data-grid";
 import { confirmDialog } from "@/components/feedback";
+import { useT } from "@/lib/i18n/client";
 
 const SAMPLE = `create table public.todos (
   id bigint generated always as identity primary key,
@@ -56,6 +57,7 @@ function newId(): string {
 
 export default function SqlPage() {
   const { ref, keys } = useProject();
+  const t = useT();
   const [snippets, setSnippets] = useState<Snippet[]>([]);
   const [activeId, setActiveId] = useState<string>("");
   const [loaded, setLoaded] = useState(false);
@@ -102,10 +104,10 @@ export default function SqlPage() {
 
   async function removeSnippet(id: string) {
     const ok = await confirmDialog({
-      title: "So'rovni o'chirish",
-      message: "Bu saqlangan so'rov o'chiriladi.",
+      title: t.sql.deleteTitle,
+      message: t.sql.deleteMsg,
       danger: true,
-      confirmLabel: "O'chirish",
+      confirmLabel: t.common.delete,
     });
     if (!ok) return;
     setSnippets((prev) => {
@@ -157,15 +159,15 @@ export default function SqlPage() {
             className="btn-default w-full justify-start"
             onClick={addSnippet}
           >
-            <Plus size={14} /> Yangi so'rov
+            <Plus size={14} /> {t.sql.newQuery}
           </button>
         </div>
         <div className="px-3 pb-1 text-[11px] font-medium uppercase tracking-wide text-faint">
-          So'rovlar
+          {t.sql.queries}
         </div>
         <div className="max-h-40 overflow-auto px-2 pb-2 md:max-h-none md:flex-1">
           {snippets.length === 0 && (
-            <p className="px-2 py-2 text-xs text-faint">Hali so'rov yo'q</p>
+            <p className="px-2 py-2 text-xs text-faint">{t.sql.noQuery}</p>
           )}
           {snippets.map((s) => {
             const isActive = s.id === activeId;
@@ -225,12 +227,12 @@ export default function SqlPage() {
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex h-11 shrink-0 items-center justify-between border-b border-border px-4">
           <span className="text-[13px] text-muted">
-            SQL Editor
+            {t.sql.editorTitle}
             {active && <span className="ml-2 text-faint">· {active.name}</span>}
           </span>
           <button className="btn" onClick={run} disabled={busy || !keys || !active}>
             {busy ? <Loader2 size={14} className="animate-spin" /> : <Play size={13} />}
-            Run <span className="ml-1 hidden text-[11px] opacity-70 sm:inline">⌘↵</span>
+            {t.sql.run} <span className="ml-1 hidden text-[11px] opacity-70 sm:inline">⌘↵</span>
           </button>
         </div>
 
@@ -239,7 +241,7 @@ export default function SqlPage() {
             className="h-[45%] w-full resize-none border-b border-border bg-surface px-4 py-3 font-mono text-[13px] leading-relaxed text-fg outline-none placeholder:text-faint"
             value={active?.sql ?? ""}
             spellCheck={false}
-            placeholder="SQL yozing..."
+            placeholder={t.sql.queryPlaceholder}
             disabled={!active}
             onChange={(e) => setActiveSql(e.target.value)}
             onKeyDown={(e) => {
@@ -255,15 +257,15 @@ export default function SqlPage() {
                 {error}
               </div>
             ) : rows === null ? (
-              <p className="text-sm text-faint">
-                Natija shu yerda chiqadi. <span className="kbd">⌘ ↵</span> bilan
-                ishga tushiring.
+              <p className="flex items-center gap-1.5 text-sm text-faint">
+                {t.sql.resultHint} <span className="kbd">⌘ ↵</span>
               </p>
             ) : (
               <div className="space-y-2">
                 <p className="flex items-center gap-1.5 text-xs text-faint">
                   {rows.length === 0 && <Check size={12} className="text-brand" />}
-                  {rows.length} qator{rows.length === 0 && " · muvaffaqiyatli"}
+                  {t.sql.rows(rows.length)}
+                  {rows.length === 0 && ` · ${t.sql.success}`}
                 </p>
                 {rows.length > 0 && <DataGrid rows={rows} />}
               </div>
