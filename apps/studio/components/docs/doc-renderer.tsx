@@ -30,7 +30,7 @@ function RichText({ text }: { text: string }) {
   );
 }
 
-export function DocRenderer({ doc }: { doc: DocPage }) {
+export function DocRenderer({ doc, help }: { doc: DocPage; help: string }) {
   return (
     <article className="mx-auto max-w-3xl animate-fade-in">
       <h1 className="text-balance text-4xl font-semibold tracking-[-0.02em]">
@@ -56,7 +56,7 @@ export function DocRenderer({ doc }: { doc: DocPage }) {
       ))}
 
       <div className="mt-16 flex items-center justify-between border-t border-border pt-6 text-sm text-secondary">
-        <span>Savol bormi? Hujjatlarni GitHub'da yaxshilashga yordam bering.</span>
+        <span>{help}</span>
       </div>
     </article>
   );

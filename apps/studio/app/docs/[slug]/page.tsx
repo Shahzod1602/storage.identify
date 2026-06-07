@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
-import { DOCS, getDoc } from "@/lib/docs";
+import { DOCS } from "@/lib/docs";
+import { getDoc } from "@/lib/docs-i18n";
+import { getLocale, getDict } from "@/lib/i18n/server";
 import { DocRenderer } from "@/components/docs/doc-renderer";
 
 export function generateStaticParams() {
@@ -12,7 +14,8 @@ export default async function DocPageView({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const doc = getDoc(slug);
+  const locale = await getLocale();
+  const doc = getDoc(locale, slug);
   if (!doc) notFound();
-  return <DocRenderer doc={doc} />;
+  return <DocRenderer doc={doc} help={getDict(locale).docs.help} />;
 }

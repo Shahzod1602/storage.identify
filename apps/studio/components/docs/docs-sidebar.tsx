@@ -2,16 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { DOC_NAV } from "@/lib/docs";
 
-export function DocsSidebar() {
+export function DocsSidebar({
+  items,
+  title,
+}: {
+  items: { slug: string; title: string }[];
+  title: string;
+}) {
   const pathname = usePathname();
   return (
     <nav className="space-y-0.5">
       <div className="mb-3 px-3 text-[11px] font-semibold uppercase tracking-wider text-faint">
-        Hujjatlar
+        {title}
       </div>
-      {DOC_NAV.map((item) => {
+      {items.map((item) => {
         const href = `/docs/${item.slug}`;
         const active =
           pathname === href ||
