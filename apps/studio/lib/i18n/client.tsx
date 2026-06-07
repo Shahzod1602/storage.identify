@@ -2,36 +2,29 @@
 
 import { createContext, useContext, type ReactNode } from "react";
 import type { Locale } from "./config";
-import type { Dict } from "./dictionaries";
+import { dictionaries, type Dict } from "./dictionaries";
 
-interface I18nCtx {
-  locale: Locale;
-  t: Dict;
-}
-
-const Ctx = createContext<I18nCtx | null>(null);
+// Faqat LOCALE (string) server→client chegarasidan o'tadi. Lug'at (funksiyalar bilan)
+// client tomonida import qilinadi — funksiyalar serialize qilinmaydi.
+const LocaleCtx = createContext<Locale>("uz");
 
 export function LocaleProvider({
   locale,
-  dict,
   children,
 }: {
   locale: Locale;
-  dict: Dict;
   children: ReactNode;
 }) {
-  return <Ctx.Provider value={{ locale, t: dict }}>{children}</Ctx.Provider>;
+  return <LocaleCtx.Provider value={locale}>{children}</LocaleCtx.Provider>;
 }
 
 /** Joriy til lug'ati: const t = useT(); t.common.save */
 export function useT(): Dict {
-  const c = useContext(Ctx);
-  if (!c) throw new Error("useT() faqat <LocaleProvider> ichida ishlaydi");
-  return c.t;
+  return dictionaries[useContext(LocaleCtx)];
 }
 
 export function useLocale(): Locale {
-  return useContext(Ctx)?.locale ?? "uz";
+  return useContext(LocaleCtx);
 }
 
 /** Tilni cookie'ga yozadi (server keyingi render'da o'qiydi). */

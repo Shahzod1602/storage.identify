@@ -3,7 +3,7 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 import { FeedbackHosts } from "@/components/feedback";
-import { getLocale, getDict } from "@/lib/i18n/server";
+import { getLocale } from "@/lib/i18n/server";
 import { LocaleProvider } from "@/lib/i18n/client";
 
 export const metadata: Metadata = {
@@ -21,7 +21,6 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const locale = await getLocale();
-  const dict = getDict(locale);
   return (
     <html
       lang={locale}
@@ -32,7 +31,7 @@ export default async function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="h-full font-sans">
-        <LocaleProvider locale={locale} dict={dict}>
+        <LocaleProvider locale={locale}>
           {children}
           <FeedbackHosts />
         </LocaleProvider>
