@@ -2,12 +2,15 @@ import Link from "next/link";
 import { ArrowRight, Github } from "lucide-react";
 import { DocsSidebar } from "@/components/docs/docs-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LocaleSwitcher } from "@/components/locale-switcher";
+import { getLocale, getDict } from "@/lib/i18n/server";
 
-export default function DocsLayout({
+export default async function DocsLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const d = getDict(await getLocale());
   return (
     <div className="min-h-screen bg-bg">
       <nav className="sticky top-0 z-30 border-b border-border/70 bg-bg/75 backdrop-blur-xl">
@@ -23,7 +26,7 @@ export default function DocsLayout({
               storagedb
             </Link>
             <span className="text-faint">/</span>
-            <span className="text-sm text-secondary">Hujjatlar</span>
+            <span className="text-sm text-secondary">{d.docs.title}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <a
@@ -33,9 +36,10 @@ export default function DocsLayout({
             >
               <Github size={15} /> GitHub
             </a>
+            <LocaleSwitcher />
             <ThemeToggle />
             <Link href="/dashboard" className="btn">
-              Dashboard <ArrowRight size={15} />
+              {d.nav.dashboard} <ArrowRight size={15} />
             </Link>
           </div>
         </div>

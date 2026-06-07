@@ -24,9 +24,12 @@ import {
 import { useRequireAuth } from "@/components/auth-guard";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { copyText, toast } from "@/components/feedback";
+import { LocaleSwitcher } from "@/components/locale-switcher";
+import { useT } from "@/lib/i18n/client";
 
 export default function DashboardPage() {
   const ready = useRequireAuth();
+  const t = useT();
   const [role, setRole] = useState<"super_admin" | "user" | null>(null);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [query, setQuery] = useState("");
@@ -90,19 +93,20 @@ export default function DashboardPage() {
             <span>storagedb</span>
           </Link>
           <ChevronSep />
-          <span className="text-sm text-secondary">Tashkilot</span>
+          <span className="text-sm text-secondary">{t.dashboard.org}</span>
           {role === "super_admin" && (
-            <span className="badge badge-brand">super admin</span>
+            <span className="badge badge-brand">{t.dashboard.superAdmin}</span>
           )}
           <div className="ml-auto flex items-center gap-1">
             {role === "super_admin" && (
               <Link href="/dashboard/users" className="btn-ghost">
-                <Users size={15} /> Userlar
+                <Users size={15} /> {t.dashboard.users}
               </Link>
             )}
+            <LocaleSwitcher />
             <ThemeToggle />
-            <button className="btn-ghost" onClick={logout} title="Chiqish">
-              <LogOut size={15} /> Chiqish
+            <button className="btn-ghost" onClick={logout} title={t.dashboard.logout}>
+              <LogOut size={15} /> {t.dashboard.logout}
             </button>
           </div>
         </div>
@@ -111,18 +115,18 @@ export default function DashboardPage() {
       <div className="mx-auto max-w-6xl px-6 py-10">
         <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Loyihalar</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {t.dashboard.title}
+            </h1>
             <p className="mt-1 text-sm text-secondary">
-              {loading
-                ? "Yuklanmoqda…"
-                : `${projects.length} ta loyiha · bitta serverda`}
+              {loading ? t.common.loading : t.dashboard.subtitle(projects.length)}
             </p>
           </div>
           <button
             className="btn"
             onClick={() => (creating ? cancelCreate() : setCreating(true))}
           >
-            <Plus size={15} /> Yangi loyiha
+            <Plus size={15} /> {t.dashboard.newProject}
           </button>
         </div>
 
@@ -133,7 +137,7 @@ export default function DashboardPage() {
           />
           <input
             className="input pl-9"
-            placeholder="Loyiha qidirish…"
+            placeholder={t.dashboard.searchPlaceholder}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -144,16 +148,16 @@ export default function DashboardPage() {
             <input
               autoFocus
               className="input max-w-sm flex-1"
-              placeholder="Loyiha nomi"
+              placeholder={t.dashboard.projectName}
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && onCreate()}
             />
             <button className="btn" onClick={onCreate}>
-              Yaratish
+              {t.common.create}
             </button>
             <button className="btn-ghost" onClick={cancelCreate}>
-              Bekor
+              {t.common.cancel}
             </button>
           </div>
         )}
@@ -179,19 +183,17 @@ export default function DashboardPage() {
               <Database size={22} />
             </div>
             <p className="mt-4 font-medium">
-              {query ? "Loyiha topilmadi" : "Hali loyiha yo'q"}
+              {query ? t.dashboard.notFound : t.dashboard.noProjects}
             </p>
             <p className="mt-1 text-sm text-secondary">
-              {query
-                ? "Boshqa nom bilan qidirib ko'ring."
-                : "Birinchi loyihangizni yarating va API'ni ulang."}
+              {query ? t.dashboard.notFoundDesc : t.dashboard.noProjectsDesc}
             </p>
             {!query && (
               <button
                 className="btn mt-5"
                 onClick={() => setCreating(true)}
               >
-                <Plus size={15} /> Yangi loyiha
+                <Plus size={15} /> {t.dashboard.newProject}
               </button>
             )}
           </div>
@@ -208,7 +210,8 @@ export default function DashboardPage() {
                     <Database size={18} />
                   </span>
                   <span className="badge badge-brand">
-                    <span className="h-1.5 w-1.5 rounded-full bg-brand" /> Faol
+                    <span className="h-1.5 w-1.5 rounded-full bg-brand" />{" "}
+                    {t.dashboard.active}
                   </span>
                 </div>
                 <div className="mt-4 flex items-center gap-1.5 font-medium tracking-tight transition group-hover:text-brand">
@@ -237,6 +240,7 @@ function ChevronSep() {
 }
 
 function NewKeys({ keys, onClose }: { keys: ProjectKeys; onClose: () => void }) {
+  const t = useT();
   return (
     <div className="card mb-6 animate-fade-in border-brand/30 bg-brand/[0.05] p-5">
       <div className="mb-4 flex items-center justify-between">
@@ -244,27 +248,24 @@ function NewKeys({ keys, onClose }: { keys: ProjectKeys; onClose: () => void }) 
           <span className="grid h-7 w-7 place-items-center rounded-md bg-brand/15 text-brand">
             <Check size={15} />
           </span>
-          <p className="text-sm font-medium">
-            "{keys.name}" yaratildi — kalitlarni saqlang
-          </p>
+          <p className="text-sm font-medium">{t.dashboard.created(keys.name)}</p>
         </div>
         <button className="btn-ghost !px-1.5" onClick={onClose}>
           <X size={15} />
         </button>
       </div>
       <div className="rounded-lg border border-border bg-bg px-4">
-        <CopyRow label="ref" value={keys.ref} />
-        <CopyRow label="anon key" value={keys.anon_key} />
-        <CopyRow label="service key" value={keys.service_key} />
+        <CopyRow label={t.dashboard.refLabels.ref} value={keys.ref} />
+        <CopyRow label={t.dashboard.refLabels.anon} value={keys.anon_key} />
+        <CopyRow label={t.dashboard.refLabels.service} value={keys.service_key} />
       </div>
-      <p className="mt-3 text-xs text-secondary">
-        service key maxfiy — uni faqat backend'da ishlating va hech kimga bermang.
-      </p>
+      <p className="mt-3 text-xs text-secondary">{t.dashboard.serviceKeyWarn}</p>
     </div>
   );
 }
 
 function CopyRow({ label, value }: { label: string; value: string }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   return (
     <div className="flex items-center gap-3 border-b border-border/60 py-2.5 last:border-0">
@@ -277,7 +278,7 @@ function CopyRow({ label, value }: { label: string; value: string }) {
         onClick={async () => {
           if (await copyText(value)) {
             setCopied(true);
-            toast.success("Nusxa olindi");
+            toast.success(t.common.copied);
             setTimeout(() => setCopied(false), 1200);
           }
         }}

@@ -15,9 +15,12 @@ import {
 } from "lucide-react";
 import { login } from "@/lib/api";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LocaleSwitcher } from "@/components/locale-switcher";
+import { useT } from "@/lib/i18n/client";
 
 export default function LoginPage() {
   const router = useRouter();
+  const t = useT();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -47,21 +50,22 @@ export default function LoginPage() {
             </span>
             storagedb
           </Link>
-          <ThemeToggle />
+          <div className="flex items-center gap-1.5">
+            <LocaleSwitcher />
+            <ThemeToggle />
+          </div>
         </div>
 
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-[360px] animate-fade-in">
             <h1 className="text-2xl font-semibold tracking-tight">
-              Hisobingizga kiring
+              {t.login.title}
             </h1>
-            <p className="mt-2 text-sm text-secondary">
-              Dashboard'ni boshqarish uchun email va parolingizni kiriting.
-            </p>
+            <p className="mt-2 text-sm text-secondary">{t.login.subtitle}</p>
 
             <div className="mt-8 space-y-4">
               <div>
-                <label className="label">Email</label>
+                <label className="label">{t.login.email}</label>
                 <div className="relative">
                   <Mail
                     size={15}
@@ -80,7 +84,7 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <label className="label">Parol</label>
+                <label className="label">{t.login.password}</label>
                 <div className="relative">
                   <Lock
                     size={15}
@@ -108,22 +112,20 @@ export default function LoginPage() {
                   <Loader2 size={15} className="animate-spin" />
                 ) : (
                   <>
-                    Kirish <ArrowRight size={15} />
+                    {t.login.signIn} <ArrowRight size={15} />
                   </>
                 )}
               </button>
             </div>
 
             <div className="mt-6 rounded-lg border border-border bg-surface px-4 py-3 text-xs leading-relaxed text-secondary">
-              Super admin sifatida kirish:{" "}
-              <code className="kbd">SUPER_ADMIN_EMAIL</code> va parol ={" "}
-              <code className="kbd">PLATFORM_ADMIN_TOKEN</code>.
+              {t.login.superAdminHint}
             </div>
           </div>
         </div>
 
         <div className="text-center text-xs text-faint sm:text-left">
-          © 2026 storagedb · self-hosted BaaS
+          {t.login.copyright}
         </div>
       </div>
 
@@ -144,8 +146,7 @@ export default function LoginPage() {
 
         <div className="relative flex h-full flex-col justify-center px-14">
           <blockquote className="max-w-md text-balance text-2xl font-medium leading-snug tracking-tight">
-            “Backend uchun kerak bo'lgan hamma narsa — o'z serveringizda, to'liq
-            nazoratingizda.”
+            {t.login.quote}
           </blockquote>
           <p className="mt-4 text-sm text-secondary">
             Postgres · Auth · Storage · Realtime
@@ -153,10 +154,10 @@ export default function LoginPage() {
 
           <div className="mt-12 grid max-w-md grid-cols-2 gap-3">
             {[
-              { icon: Database, label: "Postgres + REST" },
-              { icon: KeyRound, label: "Authentication" },
-              { icon: HardDrive, label: "Storage" },
-              { icon: Radio, label: "Realtime" },
+              { icon: Database, label: t.login.valueProps[0] },
+              { icon: KeyRound, label: t.login.valueProps[1] },
+              { icon: HardDrive, label: t.login.valueProps[2] },
+              { icon: Radio, label: t.login.valueProps[3] },
             ].map((f) => (
               <div
                 key={f.label}

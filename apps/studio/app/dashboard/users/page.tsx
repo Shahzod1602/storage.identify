@@ -22,9 +22,12 @@ import {
 import { useRequireAuth } from "@/components/auth-guard";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { toast, confirmDialog } from "@/components/feedback";
+import { LocaleSwitcher } from "@/components/locale-switcher";
+import { useT } from "@/lib/i18n/client";
 
 export default function UsersPage() {
   const ready = useRequireAuth();
+  const t = useT();
   const router = useRouter();
   const [users, setUsers] = useState<PlatformUser[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -67,17 +70,17 @@ export default function UsersPage() {
   async function add() {
     const e = email.trim();
     if (!EMAIL_RE.test(e)) {
-      setError("Email manzili noto'g'ri (masalan: user@example.com)");
+      setError(t.users.emailInvalidFull);
       return;
     }
     if (password.length < 6) {
-      setError("Parol kamida 6 belgi bo'lishi kerak");
+      setError(t.users.min6Full);
       return;
     }
     try {
       await createUser(e, password, role);
       closeForm();
-      toast.success("Foydalanuvchi yaratildi");
+      toast.success(t.users.createdToast);
       await reload();
     } catch (err) {
       setError((err as Error).message);
@@ -87,15 +90,15 @@ export default function UsersPage() {
 
   async function remove(u: PlatformUser) {
     const ok = await confirmDialog({
-      title: "Foydalanuvchini o'chirish",
-      message: `${u.email} butunlay o'chiriladi.`,
+      title: t.users.deleteTitle,
+      message: t.users.deleteMsg(u.email),
       danger: true,
-      confirmLabel: "O'chirish",
+      confirmLabel: t.common.delete,
     });
     if (!ok) return;
     try {
       await deleteUser(u.id);
-      toast.success("Foydalanuvchi o'chirildi");
+      toast.success(t.users.deleted);
       await reload();
     } catch (e) {
       toast.error((e as Error).message);
@@ -109,11 +112,12 @@ export default function UsersPage() {
       <header className="sticky top-0 z-20 border-b border-border bg-surface/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-6 py-3">
           <Link href="/dashboard" className="btn-ghost">
-            <ArrowLeft size={15} /> Loyihalar
+            <ArrowLeft size={15} /> {t.shell.projects}
           </Link>
           <span className="text-faint">/</span>
-          <span className="font-medium">Foydalanuvchilar</span>
-          <div className="ml-auto">
+          <span className="font-medium">{t.users.title}</span>
+          <div className="ml-auto flex items-center gap-1.5">
+            <LocaleSwitcher />
             <ThemeToggle />
           </div>
         </div>
@@ -123,21 +127,21 @@ export default function UsersPage() {
         <div className="mb-6 flex items-end justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">
-              Foydalanuvchilar
+              {t.users.title}
             </h1>
             <p className="mt-1 text-sm text-secondary">
-              {users.length} ta · platforma kirish huquqi (RBAC)
+              {t.users.subtitle(users.length)}
             </p>
           </div>
           <div className="flex gap-2">
             <button className="btn-default" onClick={reload}>
-              <RefreshCw size={14} /> Yangilash
+              <RefreshCw size={14} /> {t.common.refresh}
             </button>
             <button
               className="btn"
               onClick={() => (adding ? closeForm() : setAdding(true))}
             >
-              <UserPlus size={14} /> Yangi user
+              <UserPlus size={14} /> {t.users.newUser}
             </button>
           </div>
         </div>
@@ -145,7 +149,7 @@ export default function UsersPage() {
         {adding && (
           <div className="card mb-5 animate-fade-in flex flex-wrap items-start gap-3 p-4">
             <div className="min-w-[200px] flex-1">
-              <label className="label">Email</label>
+              <label className="label">{t.users.email}</label>
               <input
                 className="input"
                 type="email"
@@ -156,26 +160,26 @@ export default function UsersPage() {
               />
               {email.length > 0 && !EMAIL_RE.test(email.trim()) && (
                 <p className="mt-1.5 text-xs text-danger">
-                  Email manzili noto'g'ri
+                  {t.users.emailInvalid}
                 </p>
               )}
             </div>
             <div className="min-w-[160px] flex-1">
-              <label className="label">Parol</label>
+              <label className="label">{t.users.password}</label>
               <input
                 className="input"
                 type="password"
-                placeholder="kamida 6 belgi"
+                placeholder={t.users.min6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && add()}
               />
               {password.length > 0 && password.length < 6 && (
-                <p className="mt-1.5 text-xs text-danger">Kamida 6 belgi</p>
+                <p className="mt-1.5 text-xs text-danger">{t.users.min6}</p>
               )}
             </div>
             <div>
-              <label className="label">Rol</label>
+              <label className="label">{t.users.role}</label>
               <select
                 className="input"
                 value={role}
@@ -183,8 +187,8 @@ export default function UsersPage() {
                   setRole(e.target.value as "user" | "super_admin")
                 }
               >
-                <option value="user">user</option>
-                <option value="super_admin">super_admin</option>
+                <option value="user">{t.users.roleUser}</option>
+                <option value="super_admin">{t.users.roleSuper}</option>
               </select>
             </div>
             <div className="flex items-center gap-2 self-end pb-0.5">
@@ -193,7 +197,7 @@ export default function UsersPage() {
                 onClick={add}
                 disabled={!EMAIL_RE.test(email.trim()) || password.length < 6}
               >
-                Yaratish
+                {t.users.create}
               </button>
               <button className="btn-ghost !px-1.5" onClick={closeForm}>
                 <X size={16} />
@@ -208,17 +212,17 @@ export default function UsersPage() {
           <table className="grid">
             <thead>
               <tr>
-                <th className="w-full">Email</th>
-                <th className="whitespace-nowrap">Rol</th>
-                <th className="whitespace-nowrap">Yaratilgan</th>
-                <th className="whitespace-nowrap !text-right">Amallar</th>
+                <th className="w-full">{t.users.email}</th>
+                <th className="whitespace-nowrap">{t.users.role}</th>
+                <th className="whitespace-nowrap">{t.users.createdAt}</th>
+                <th className="whitespace-nowrap !text-right">{t.users.actions}</th>
               </tr>
             </thead>
             <tbody>
               {users.length === 0 && (
                 <tr>
                   <td colSpan={4} className="!py-12 text-center text-faint">
-                    Foydalanuvchi yo'q
+                    {t.users.noUsers}
                   </td>
                 </tr>
               )}

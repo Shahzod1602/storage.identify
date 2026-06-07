@@ -17,59 +17,21 @@ import {
   Users,
   Archive,
   BarChart3,
+  type LucideIcon,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LocaleSwitcher } from "@/components/locale-switcher";
+import { getLocale, getDict } from "@/lib/i18n/server";
 
-const FEATURES = [
-  {
-    icon: Database,
-    title: "Postgres + REST API",
-    desc: "Har loyiha alohida Postgres. Schemadan avtomatik REST — CRUD, filtrlar, joins, RPC — RLS bilan himoyalangan.",
-  },
-  {
-    icon: KeyRound,
-    title: "Authentication",
-    desc: "Email/parol, JWT, refresh rotatsiya, email tasdiqlash, parol tiklash va admin boshqaruvi.",
-  },
-  {
-    icon: HardDrive,
-    title: "Storage",
-    desc: "Public/private bucketlar, signed URL'lar, fayl yuklash va yuklab olish — RLS bilan.",
-  },
-  {
-    icon: Radio,
-    title: "Realtime",
-    desc: "Postgres o'zgarishlari, broadcast kanallar va presence — WebSocket orqali, jonli.",
-  },
-  {
-    icon: LayoutDashboard,
-    title: "Dashboard",
-    desc: "Table editor, SQL editor, auth/storage boshqaruvi va jonli hisobotlar — bitta joyda.",
-  },
-  {
-    icon: Code2,
-    title: "Client SDK",
-    desc: "supabase-js kabi: .from().select(), .auth, .storage, .channel(), .rpc(). TypeScript tayyor.",
-  },
+const FEATURE_ICONS: LucideIcon[] = [
+  Database,
+  KeyRound,
+  HardDrive,
+  Radio,
+  LayoutDashboard,
+  Code2,
 ];
-
-const WHY = [
-  {
-    icon: Server,
-    title: "O'z serveringizda",
-    desc: "Ma'lumotlaringiz sizniki. Faqat VPS puli — obuna yo'q. Ko'p loyiha bitta serverda.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Xavfsiz",
-    desc: "Shifrlangan kalitlar, RLS izolyatsiya, HTTPS, per-key rate-limit va avtomatik backup.",
-  },
-  {
-    icon: Zap,
-    title: "Supabase-mos",
-    desc: "Tanish API va SDK. Mavjud bilimlaringiz ishlaydi, migratsiya bir necha daqiqa.",
-  },
-];
+const WHY_ICONS: LucideIcon[] = [Server, ShieldCheck, Zap];
 
 const SNIPPET = `import { createClient } from "@storagedb/client";
 
@@ -90,7 +52,11 @@ db.channel("room")
 
 const GH = "https://github.com/Shahzod1602/storage.identify";
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const locale = await getLocale();
+  const t = getDict(locale).landing;
+  const nav = getDict(locale).nav;
+
   return (
     <div className="min-h-screen bg-bg">
       {/* ── Nav ── */}
@@ -99,22 +65,23 @@ export default function LandingPage() {
           <Logo />
           <div className="hidden items-center gap-1 md:flex">
             <a href="#imkoniyatlar" className="btn-ghost">
-              Imkoniyatlar
+              {nav.product}
             </a>
             <Link href="/docs" className="btn-ghost">
-              Hujjatlar
+              {nav.docs}
             </Link>
             <a href={GH} target="_blank" className="btn-ghost">
               <Github size={15} /> GitHub
             </a>
           </div>
           <div className="flex items-center gap-1.5">
+            <LocaleSwitcher />
             <ThemeToggle />
             <Link href="/login" className="btn-ghost hidden sm:inline-flex">
-              Kirish
+              {nav.login}
             </Link>
             <Link href="/dashboard" className="btn">
-              Dashboard <ArrowRight size={15} />
+              {nav.dashboard} <ArrowRight size={15} />
             </Link>
           </div>
         </div>
@@ -126,83 +93,75 @@ export default function LandingPage() {
         <div className="relative mx-auto max-w-3xl px-6 pb-16 pt-24 text-center sm:pt-28">
           <span className="badge badge-brand mb-6 animate-fade-in py-1">
             <span className="h-1.5 w-1.5 rounded-full bg-brand" />
-            Self-hosted · Ochiq manba
+            {t.badge}
           </span>
           <h1 className="text-balance text-[2.75rem] font-semibold leading-[1.05] tracking-[-0.03em] sm:text-6xl">
-            Backend — <span className="text-brand">sizning</span> serveringizda.
+            {t.heroPre}
+            <span className="text-brand">{t.heroHi}</span>
+            {t.heroPost}
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-pretty text-lg leading-relaxed text-secondary">
-            Postgres, Auth, Storage va Realtime — bitta platformada, to'liq
-            nazoratingizda. Obuna yo'q, lock-in yo'q. Faqat VPS.
+            {t.heroSub}
           </p>
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link href="/dashboard" className="btn w-full px-5 py-2.5 text-sm sm:w-auto">
-              Boshlash <ArrowRight size={16} />
+              {t.ctaStart} <ArrowRight size={16} />
             </Link>
             <a
               href={GH}
               target="_blank"
               className="btn-default w-full px-5 py-2.5 text-sm sm:w-auto"
             >
-              <Github size={16} /> Kodni ko'rish
+              <Github size={16} /> {t.ctaCode}
             </a>
           </div>
           <p className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 text-[13px] text-faint">
-            <span className="inline-flex items-center gap-1.5">
-              <Check size={13} className="text-brand" /> 5 daqiqada o'rnatish
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Check size={13} className="text-brand" /> Supabase-mos API
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Check size={13} className="text-brand" /> Docker bilan deploy
-            </span>
+            {[t.check1, t.check2, t.check3].map((c) => (
+              <span key={c} className="inline-flex items-center gap-1.5">
+                <Check size={13} className="text-brand" /> {c}
+              </span>
+            ))}
           </p>
         </div>
 
-        {/* Mahsulot ko'rinishi */}
         <div className="relative mx-auto max-w-5xl px-6 pb-4">
-          <StudioMock />
+          <StudioMock label={getDict(locale).shell} />
         </div>
       </section>
 
       {/* ── Trust strip ── */}
       <section className="border-y border-border bg-surface/60">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-10 gap-y-3 px-6 py-6 text-sm font-medium text-faint">
-          <span>Postgres</span>
-          <Dot />
-          <span>TypeScript</span>
-          <Dot />
-          <span>Docker</span>
-          <Dot />
-          <span>WebSocket</span>
-          <Dot />
-          <span>PostgREST-mos</span>
+          {t.trust.map((x, i) => (
+            <span key={x} className="flex items-center gap-x-10">
+              {x}
+              {i < t.trust.length - 1 && <Dot />}
+            </span>
+          ))}
         </div>
       </section>
 
       {/* ── Features ── */}
       <section id="imkoniyatlar" className="mx-auto max-w-6xl px-6 py-24">
-        <SectionHead
-          eyebrow="Imkoniyatlar"
-          title="Backend uchun kerak bo'lgan hamma narsa"
-          desc="Qutidan tashqari — birinchi qatorni yozmasdan oldin tayyor."
-        />
+        <SectionHead eyebrow={t.featEyebrow} title={t.featTitle} desc={t.featDesc} />
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((f) => (
-            <div
-              key={f.title}
-              className="card group p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/40"
-            >
-              <span className="grid h-10 w-10 place-items-center rounded-lg border border-border bg-brand/10 text-brand transition group-hover:scale-105">
-                <f.icon size={18} />
-              </span>
-              <h3 className="mt-4 font-medium tracking-tight">{f.title}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-secondary">
-                {f.desc}
-              </p>
-            </div>
-          ))}
+          {t.features.map((f, i) => {
+            const Icon = FEATURE_ICONS[i]!;
+            return (
+              <div
+                key={f.title}
+                className="card group p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/40"
+              >
+                <span className="grid h-10 w-10 place-items-center rounded-lg border border-border bg-brand/10 text-brand transition group-hover:scale-105">
+                  <Icon size={18} />
+                </span>
+                <h3 className="mt-4 font-medium tracking-tight">{f.title}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-secondary">
+                  {f.desc}
+                </p>
+              </div>
+            );
+          })}
         </div>
       </section>
 
@@ -211,31 +170,32 @@ export default function LandingPage() {
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-24 lg:grid-cols-2">
           <div>
             <span className="text-[13px] font-medium uppercase tracking-wider text-brand">
-              Tanish SDK
+              {t.sdkEyebrow}
             </span>
             <h2 className="mt-2 text-3xl font-semibold tracking-tight">
               <code className="rounded-md bg-hover px-1.5 py-0.5 font-mono text-2xl text-fg">
                 supabase-js
-              </code>{" "}
-              bilishingiz kifoya
+              </code>
+              {t.sdkTitlePre}
             </h2>
-            <p className="mt-3 leading-relaxed text-secondary">
-              Bir xil tajriba, bir xil API. Mavjud kod va bilimlaringiz to'g'ridan-to'g'ri ishlaydi.
-            </p>
+            <p className="mt-3 leading-relaxed text-secondary">{t.sdkDesc}</p>
             <div className="mt-8 space-y-5">
-              {WHY.map((w) => (
-                <div key={w.title} className="flex gap-3.5">
-                  <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand">
-                    <w.icon size={16} />
-                  </span>
-                  <div>
-                    <div className="font-medium tracking-tight">{w.title}</div>
-                    <div className="mt-0.5 text-sm leading-relaxed text-secondary">
-                      {w.desc}
+              {t.why.map((w, i) => {
+                const Icon = WHY_ICONS[i]!;
+                return (
+                  <div key={w.title} className="flex gap-3.5">
+                    <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand">
+                      <Icon size={16} />
+                    </span>
+                    <div>
+                      <div className="font-medium tracking-tight">{w.title}</div>
+                      <div className="mt-0.5 text-sm leading-relaxed text-secondary">
+                        {w.desc}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -248,17 +208,17 @@ export default function LandingPage() {
         <div className="pointer-events-none absolute left-1/2 top-1/2 h-[300px] w-[700px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand/10 blur-[120px]" />
         <div className="relative mx-auto max-w-3xl px-6 py-28 text-center">
           <h2 className="text-balance text-4xl font-semibold tracking-tight">
-            Bugun ishga tushiring
+            {t.ctaTitle}
           </h2>
           <p className="mx-auto mt-4 max-w-md text-pretty text-lg text-secondary">
-            Loyiha yarating, jadval tuzing, API'ni ulang — bir necha daqiqada.
+            {t.ctaDesc}
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link href="/dashboard" className="btn px-6 py-2.5 text-sm">
-              Dashboard'ga kirish <ArrowRight size={16} />
+              {t.ctaDash} <ArrowRight size={16} />
             </Link>
             <Link href="/docs" className="btn-default px-6 py-2.5 text-sm">
-              Hujjatlarni o'qish
+              {t.ctaDocs}
             </Link>
           </div>
         </div>
@@ -271,27 +231,27 @@ export default function LandingPage() {
             <div>
               <Logo />
               <p className="mt-3 max-w-xs text-sm leading-relaxed text-secondary">
-                Self-hosted Backend-as-a-Service. O'z serveringizda, to'liq nazoratingizda.
+                {t.footerTagline}
               </p>
             </div>
             <FooterCol
-              title="Mahsulot"
+              title={t.footProduct}
               links={[
-                { label: "Imkoniyatlar", href: "#imkoniyatlar" },
-                { label: "Dashboard", href: "/dashboard" },
-                { label: "Kirish", href: "/login" },
+                { label: nav.product, href: "#imkoniyatlar" },
+                { label: nav.dashboard, href: "/dashboard" },
+                { label: nav.login, href: "/login" },
               ]}
             />
             <FooterCol
-              title="Hujjatlar"
+              title={t.footDocsCol}
               links={[
-                { label: "Boshlash", href: "/docs" },
+                { label: nav.docs, href: "/docs" },
                 { label: "REST API", href: "/docs/rest" },
                 { label: "Auth", href: "/docs/auth" },
               ]}
             />
             <FooterCol
-              title="Loyiha"
+              title={t.footProject}
               links={[
                 { label: "GitHub", href: GH, external: true },
                 { label: "Storage", href: "/docs/storage" },
@@ -300,13 +260,13 @@ export default function LandingPage() {
             />
           </div>
           <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-border pt-6 text-sm text-faint sm:flex-row">
-            <span>© 2026 storagedb — self-hosted BaaS</span>
+            <span>{t.copyright}</span>
             <div className="flex items-center gap-4">
               <a href={GH} target="_blank" className="transition hover:text-fg">
                 GitHub
               </a>
               <Link href="/docs" className="transition hover:text-fg">
-                Hujjatlar
+                {nav.docs}
               </Link>
             </div>
           </div>
@@ -387,7 +347,7 @@ function FooterCol({
       <div className="text-[13px] font-medium text-fg">{title}</div>
       <ul className="mt-3 space-y-2.5 text-sm">
         {links.map((l) => (
-          <li key={l.label}>
+          <li key={l.label + l.href}>
             {l.external ? (
               <a href={l.href} target="_blank" className="text-secondary transition hover:text-fg">
                 {l.label}
@@ -421,25 +381,28 @@ function CodePanel() {
 }
 
 /** Hero ostidagi mahsulot ko'rinishi — soxta Studio interfeysi. */
-function StudioMock() {
+function StudioMock({
+  label,
+}: {
+  label: { overview: string; tableEditor: string; sqlEditor: string; auth: string; storage: string; reports: string };
+}) {
   const nav = [
-    { icon: Database, label: "Umumiy", active: false },
-    { icon: Table2, label: "Table Editor", active: true },
-    { icon: SquareTerminal, label: "SQL Editor", active: false },
-    { icon: Users, label: "Authentication", active: false },
-    { icon: Archive, label: "Storage", active: false },
-    { icon: BarChart3, label: "Hisobotlar", active: false },
+    { icon: Database, label: label.overview, active: false },
+    { icon: Table2, label: label.tableEditor, active: true },
+    { icon: SquareTerminal, label: label.sqlEditor, active: false },
+    { icon: Users, label: label.auth, active: false },
+    { icon: Archive, label: label.storage, active: false },
+    { icon: BarChart3, label: label.reports, active: false },
   ];
   const rows = [
-    ["1", "Dizayn tizimi", "true", "2026-06-01"],
-    ["2", "REST API ulanishi", "false", "2026-06-03"],
-    ["3", "Auth oqimi", "true", "2026-06-04"],
+    ["1", "Design system", "true", "2026-06-01"],
+    ["2", "REST API", "false", "2026-06-03"],
+    ["3", "Auth flow", "true", "2026-06-04"],
     ["4", "Storage bucket", "false", "2026-06-05"],
-    ["5", "Realtime kanal", "true", "2026-06-06"],
+    ["5", "Realtime channel", "true", "2026-06-06"],
   ];
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-panel shadow-pop">
-      {/* browser chrome */}
       <div className="flex items-center gap-2 border-b border-border bg-surface px-4 py-2.5">
         <span className="h-2.5 w-2.5 rounded-full bg-faint/40" />
         <span className="h-2.5 w-2.5 rounded-full bg-faint/40" />
@@ -449,7 +412,6 @@ function StudioMock() {
         </div>
       </div>
       <div className="flex h-[340px] text-[12px]">
-        {/* sidebar */}
         <div className="hidden w-48 shrink-0 flex-col border-r border-border bg-surface/60 p-2.5 sm:flex">
           <div className="mb-3 flex items-center gap-2 px-1.5 py-1">
             <span className="grid h-5 w-5 place-items-center rounded bg-brand text-[10px] font-bold text-brand-fg">
@@ -469,14 +431,13 @@ function StudioMock() {
             </div>
           ))}
         </div>
-        {/* main */}
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
             <div className="flex items-center gap-2 font-medium text-fg">
               <Table2 size={14} className="text-brand" /> todos
             </div>
             <span className="rounded-md bg-brand px-2 py-1 text-[11px] font-medium text-brand-fg">
-              + Qator
+              + row
             </span>
           </div>
           <div className="grid grid-cols-[40px_1fr_90px_120px] border-b border-border bg-surface/60 px-4 py-2 text-[10px] font-medium uppercase tracking-wide text-faint">

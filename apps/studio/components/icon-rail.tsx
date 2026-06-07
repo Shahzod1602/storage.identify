@@ -12,25 +12,28 @@ import {
   Settings,
   type LucideIcon,
 } from "lucide-react";
+import { useT } from "@/lib/i18n/client";
+import type { Dict } from "@/lib/i18n/dictionaries";
 
 interface Item {
   slug: string;
-  label: string;
+  key: keyof Dict["shell"];
   icon: LucideIcon;
 }
 
 const ITEMS: Item[] = [
-  { slug: "", label: "Umumiy", icon: Home },
-  { slug: "/tables", label: "Table Editor", icon: Table2 },
-  { slug: "/sql", label: "SQL Editor", icon: SquareTerminal },
-  { slug: "/auth", label: "Authentication", icon: Users },
-  { slug: "/storage", label: "Storage", icon: Archive },
-  { slug: "/reports", label: "Hisobotlar", icon: BarChart3 },
+  { slug: "", key: "overview", icon: Home },
+  { slug: "/tables", key: "tableEditor", icon: Table2 },
+  { slug: "/sql", key: "sqlEditor", icon: SquareTerminal },
+  { slug: "/auth", key: "auth", icon: Users },
+  { slug: "/storage", key: "storage", icon: Archive },
+  { slug: "/reports", key: "reports", icon: BarChart3 },
 ];
 
 export function IconRail() {
   const params = useParams();
   const pathname = usePathname();
+  const t = useT();
   const ref = String(params.ref);
   const base = `/project/${ref}`;
 
@@ -38,15 +41,16 @@ export function IconRail() {
     <aside className="z-20 flex w-16 shrink-0 flex-col items-center border-r border-border bg-surface py-3">
       <Link
         href="/dashboard"
-        title="Loyihalar"
+        title={t.shell.projects}
         className="group relative mb-4 grid h-9 w-9 place-items-center rounded-lg bg-brand text-brand-fg shadow-sm transition hover:bg-brand-600"
       >
         <span className="text-sm font-bold">s</span>
-        <Flyout label="Loyihalar" />
+        <Flyout label={t.shell.projects} />
       </Link>
 
       <nav className="flex flex-1 flex-col items-center gap-1">
-        {ITEMS.map(({ slug, label, icon: Icon }) => {
+        {ITEMS.map(({ slug, key, icon: Icon }) => {
+          const label = t.shell[key];
           const href = base + slug;
           const active =
             slug === "" ? pathname === base : pathname.startsWith(href);
@@ -82,7 +86,7 @@ export function IconRail() {
           <span className="absolute -left-3 h-5 w-[3px] rounded-r-full bg-brand" />
         )}
         <Settings size={18} strokeWidth={1.75} />
-        <Flyout label="Sozlamalar" />
+        <Flyout label={t.shell.settings} />
       </Link>
     </aside>
   );

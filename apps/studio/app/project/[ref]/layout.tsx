@@ -7,24 +7,28 @@ import { ProjectProvider, useProject } from "@/components/project-context";
 import { IconRail } from "@/components/icon-rail";
 import { useRequireAuth } from "@/components/auth-guard";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LocaleSwitcher } from "@/components/locale-switcher";
+import { useT } from "@/lib/i18n/client";
 
 function Topbar() {
   const { ref, keys } = useProject();
+  const t = useT();
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-surface/60 px-4 text-[13px] backdrop-blur">
       <Link
         href="/dashboard"
         className="font-medium text-secondary transition hover:text-fg"
       >
-        Loyihalar
+        {t.shell.projects}
       </Link>
       <ChevronRight size={14} className="text-faint" />
       <span className="truncate font-medium text-fg">{keys?.name ?? "…"}</span>
       <code className="kbd ml-1 hidden sm:inline">{ref}</code>
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-1.5">
         <span className="badge badge-brand">
-          <Cloud size={11} /> Local
+          <Cloud size={11} /> {t.shell.local}
         </span>
+        <LocaleSwitcher />
         <ThemeToggle />
       </div>
     </header>
