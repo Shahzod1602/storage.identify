@@ -132,6 +132,34 @@ export default function StoragePage() {
     }
   }
 
+  async function download(name: string) {
+    if (!keys || !active) return;
+    try {
+      // Autentifikatsiyali endpoint — public va private bucket'larda ham ishlaydi.
+      const res = await fetch(
+        `${GATEWAY}/v1/${ref}/storage/v1/object/${active}/${encodeURIComponent(name)}`,
+        { headers: { apikey: keys.service_key } },
+      );
+      if (!res.ok) {
+        toast.error(
+          (await res.json().catch(() => ({}))).error ?? `HTTP ${res.status}`,
+        );
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = name.split("/").pop() ?? name; // brauzerni yuklab olishga majburlaydi
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }
+
   async function deleteObject(name: string) {
     if (!keys || !active) return;
     const ok = await confirmDialog({
@@ -254,16 +282,14 @@ export default function StoragePage() {
                     <span className="hidden w-32 truncate text-xs text-faint sm:block">
                       {o.mime_type}
                     </span>
-                    {bucket?.public && (
-                      <a
-                        href={`${GATEWAY}/v1/${ref}/storage/v1/public/${active}/${encodeURIComponent(o.name)}`}
-                        target="_blank"
-                        className="text-faint transition hover:text-brand"
-                        title={t.storage.download}
-                      >
-                        <Download size={14} />
-                      </a>
-                    )}
+                    <button
+                      onClick={() => download(o.name)}
+                      className="text-faint transition hover:text-brand"
+                      title={t.storage.download}
+                      aria-label={t.storage.download}
+                    >
+                      <Download size={14} />
+                    </button>
                     <button
                       onClick={() => deleteObject(o.name)}
                       className="text-faint opacity-0 transition hover:text-danger group-hover:opacity-100"

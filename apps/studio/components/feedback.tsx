@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { Check, X, AlertTriangle, Info, Loader2 } from "lucide-react";
+import { useT } from "@/lib/i18n/client";
 
 /* ════════════════════════ Toast ════════════════════════ */
 
@@ -25,6 +26,8 @@ function emitToasts() {
   for (const l of toastListeners) l();
 }
 function pushToast(kind: ToastKind, message: string) {
+  // Bir xil xabar ketma-ket takrorlanmasin (masalan, bir nechta "Conflict").
+  if (toasts.some((t) => t.kind === kind && t.message === message)) return;
   const id = toastId++;
   toasts = [...toasts, { id, kind, message }];
   emitToasts();
@@ -49,6 +52,7 @@ const TOAST_ICON = {
 };
 
 export function Toaster() {
+  const dict = useT();
   const [, force] = useReducer((x) => x + 1, 0);
   useEffect(() => {
     toastListeners.push(force);
@@ -71,7 +75,7 @@ export function Toaster() {
           <button
             onClick={() => dismissToast(t.id)}
             className="shrink-0 text-faint transition hover:text-fg"
-            aria-label="Yopish"
+            aria-label={dict.common.close}
           >
             <X size={14} />
           </button>
@@ -114,6 +118,7 @@ function settleConfirm(v: boolean) {
 }
 
 export function ConfirmHost() {
+  const t = useT();
   const [, force] = useReducer((x) => x + 1, 0);
   useEffect(() => {
     confirmListeners.push(force);
@@ -144,14 +149,14 @@ export function ConfirmHost() {
       )}
       <div className="mt-5 flex justify-end gap-2">
         <button className="btn-default" onClick={() => settleConfirm(false)}>
-          {s.cancelLabel ?? "Bekor"}
+          {s.cancelLabel ?? t.feedback.cancelDefault}
         </button>
         <button
           className={s.danger ? "btn-danger" : "btn"}
           onClick={() => settleConfirm(true)}
           autoFocus
         >
-          {s.confirmLabel ?? "Tasdiqlash"}
+          {s.confirmLabel ?? t.feedback.confirmDefault}
         </button>
       </div>
     </Overlay>
@@ -195,6 +200,7 @@ function settlePrompt(v: { value: string; toggle: boolean } | null) {
 }
 
 export function PromptHost() {
+  const t = useT();
   const [, force] = useReducer((x) => x + 1, 0);
   const [value, setValue] = useState("");
   const [toggle, setToggle] = useState(false);
@@ -248,10 +254,10 @@ export function PromptHost() {
       )}
       <div className="mt-5 flex justify-end gap-2">
         <button className="btn-default" onClick={() => settlePrompt(null)}>
-          Bekor
+          {t.feedback.cancelDefault}
         </button>
         <button className="btn" onClick={submit} disabled={!value.trim()}>
-          {s.confirmLabel ?? "Yaratish"}
+          {s.confirmLabel ?? t.feedback.createDefault}
         </button>
       </div>
     </Overlay>

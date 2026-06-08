@@ -7,9 +7,17 @@ interface DataGridProps {
   emptyHint?: string;
   /** Berilsa, har qatorda o'chirish tugmasi chiqadi. */
   onDeleteRow?: (row: Record<string, unknown>) => void;
+  /** O'chirish tugmasi uchun tarjima qilingan yorliq. */
+  deleteRowLabel?: string;
 }
 
-export function DataGrid({ rows, types, emptyHint, onDeleteRow }: DataGridProps) {
+export function DataGrid({
+  rows,
+  types,
+  emptyHint,
+  onDeleteRow,
+  deleteRowLabel = "Qatorni o'chirish",
+}: DataGridProps) {
   if (!rows || rows.length === 0) {
     return (
       <div className="grid place-items-center rounded-xl border border-dashed border-border-strong py-16 text-sm text-faint">
@@ -48,8 +56,8 @@ export function DataGrid({ rows, types, emptyHint, onDeleteRow }: DataGridProps)
                   <button
                     onClick={() => onDeleteRow(row)}
                     className="text-faint opacity-0 transition hover:text-danger group-hover:opacity-100"
-                    title="Qatorni o'chirish"
-                    aria-label="Qatorni o'chirish"
+                    title={deleteRowLabel}
+                    aria-label={deleteRowLabel}
                   >
                     <Trash2 size={13} />
                   </button>

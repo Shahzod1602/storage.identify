@@ -49,15 +49,28 @@ export default function AuthPage() {
   }
 
   async function addUser() {
-    if (!keys || !email || !password) return;
+    if (!keys) return;
+    const trimmedEmail = email.trim();
+    // Email formatini tekshirish
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setError(t.authPage.emailInvalid);
+      toast.error(t.authPage.emailInvalid);
+      return;
+    }
+    // Parol uzunligi
+    if (password.length < 6) {
+      setError(t.authPage.passwordShort);
+      toast.error(t.authPage.passwordShort);
+      return;
+    }
     // Admin yaratish -> avtomatik tasdiqlangan
     const res = await fetch(adminUrl(), {
       method: "POST",
       headers: { apikey: keys.service_key, "content-type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email: trimmedEmail, password }),
     });
     if (!res.ok) {
-      const msg = (await res.json().catch(() => ({}))).error ?? "Xato";
+      const msg = (await res.json().catch(() => ({}))).error ?? t.authPage.actionFail;
       setError(msg);
       toast.error(msg);
       return;
@@ -131,6 +144,7 @@ export default function AuthPage() {
               <label className="mb-1 block text-xs text-faint">{t.authPage.email}</label>
               <input
                 className="input"
+                type="email"
                 placeholder="user@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -141,7 +155,7 @@ export default function AuthPage() {
               <input
                 className="input"
                 type="password"
-                placeholder="kamida 6 belgi"
+                placeholder={t.authPage.passwordPlaceholder}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />

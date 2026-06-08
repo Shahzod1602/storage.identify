@@ -9,11 +9,13 @@ import {
   Database,
   ChevronLeft,
   ChevronRight,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { useProject } from "@/components/project-context";
 import { metaQuery, GATEWAY } from "@/lib/api";
 import { DataGrid } from "@/components/data-grid";
-import { toast, confirmDialog } from "@/components/feedback";
+import { toast, confirmDialog, promptDialog } from "@/components/feedback";
 import { useT } from "@/lib/i18n/client";
 
 interface Column {
@@ -157,7 +159,12 @@ export default function TablesPage() {
       body: JSON.stringify(body),
     });
     if (!res.ok) {
-      const msg = (await res.json().catch(() => ({}))).error ?? "Insert xatosi";
+      // 409 = unique/foreign key konflikti — tushunarli xabar ko'rsatamiz.
+      const serverMsg = (await res.json().catch(() => ({}))).error;
+      const msg =
+        res.status === 409
+          ? t.tables.conflictMsg
+          : serverMsg ?? t.tables.insertFail;
       setError(msg);
       toast.error(msg);
       return;
@@ -201,6 +208,69 @@ export default function TablesPage() {
     await goPage(lastOnPage ? page - 1 : page);
   }
 
+  async function renameTable(name: string) {
+    if (!keys) return;
+    const res = await promptDialog({
+      title: t.tables.renameTable,
+      label: t.tables.renameTableLabel,
+      defaultValue: name,
+      confirmLabel: t.common.save,
+    });
+    if (!res || res.value === name) return;
+    try {
+      await metaQuery(
+        ref,
+        keys.service_key,
+        `alter table "public".${qIdent(name)} rename to ${qIdent(res.value)}`,
+      );
+      toast.success(t.tables.renamedTable);
+      await loadTables();
+      if (active === name) await open(res.value);
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }
+
+  async function dropTable(name: string) {
+    if (!keys) return;
+    const ok = await confirmDialog({
+      title: t.tables.deleteTable,
+      message: t.tables.dropTableMsg(name),
+      danger: true,
+      confirmLabel: t.common.delete,
+    });
+    if (!ok) return;
+    try {
+      await metaQuery(
+        ref,
+        keys.service_key,
+        `drop table "public".${qIdent(name)} cascade`,
+      );
+      toast.success(t.tables.droppedTable);
+      // Jadval ro'yxatini yangilab, o'chirilgan jadval ochiq bo'lsa boshqasiga o'tamiz.
+      const r = await metaQuery(
+        ref,
+        keys.service_key,
+        `select table_name from information_schema.tables
+         where table_schema='public' and table_type='BASE TABLE' order by table_name`,
+      );
+      const names = r.map((x) => String(x.table_name));
+      setTables(names);
+      if (active === name) {
+        if (names.length > 0) await open(names[0]);
+        else {
+          setActive(null);
+          setColumns([]);
+          setPkCols([]);
+          setRows([]);
+          setTotal(0);
+        }
+      }
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }
+
   const typeMap = Object.fromEntries(columns.map((c) => [c.name, c.type]));
   const editableCols = columns.filter((c) => !c.identity);
   const isRequired = (c: Column) => !c.nullable && c.def === null;
@@ -220,7 +290,7 @@ export default function TablesPage() {
           <button
             className="text-faint transition hover:text-fg"
             onClick={loadTables}
-            title="Yangilash"
+            title={t.common.refresh}
           >
             <RefreshCw size={13} />
           </button>
@@ -229,19 +299,41 @@ export default function TablesPage() {
           {tables.length === 0 && (
             <p className="px-2 py-2 text-xs text-faint">{t.tables.noTables}</p>
           )}
-          {tables.map((t) => (
-            <button
-              key={t}
-              onClick={() => open(t)}
-              className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition ${
-                active === t
-                  ? "bg-brand/10 font-medium text-brand"
-                  : "text-secondary hover:bg-hover hover:text-fg"
+          {tables.map((tbl) => (
+            <div
+              key={tbl}
+              className={`group flex items-center gap-0.5 rounded-lg pr-1 transition ${
+                active === tbl ? "bg-brand/10" : "hover:bg-hover"
               }`}
             >
-              <Table2 size={14} className="shrink-0" />
-              <span className="truncate">{t}</span>
-            </button>
+              <button
+                onClick={() => open(tbl)}
+                className={`flex min-w-0 flex-1 items-center gap-2 px-2.5 py-1.5 text-left text-[13px] ${
+                  active === tbl
+                    ? "font-medium text-brand"
+                    : "text-secondary group-hover:text-fg"
+                }`}
+              >
+                <Table2 size={14} className="shrink-0" />
+                <span className="truncate">{tbl}</span>
+              </button>
+              <button
+                onClick={() => renameTable(tbl)}
+                className="shrink-0 rounded p-1 text-faint opacity-0 transition hover:text-fg focus:opacity-100 group-hover:opacity-100"
+                title={t.tables.renameTable}
+                aria-label={t.tables.renameTable}
+              >
+                <Pencil size={12} />
+              </button>
+              <button
+                onClick={() => dropTable(tbl)}
+                className="shrink-0 rounded p-1 text-faint opacity-0 transition hover:text-danger focus:opacity-100 group-hover:opacity-100"
+                title={t.tables.deleteTable}
+                aria-label={t.tables.deleteTable}
+              >
+                <Trash2 size={12} />
+              </button>
+            </div>
           ))}
         </div>
       </div>
@@ -276,7 +368,8 @@ export default function TablesPage() {
                   <DataGrid
                     rows={rows}
                     types={typeMap}
-                    emptyHint="Qator yo'q"
+                    emptyHint={t.tables.emptyRows}
+                    deleteRowLabel={t.tables.deleteRowTooltip}
                     onDeleteRow={deleteRow}
                   />
                 </div>
@@ -320,12 +413,17 @@ export default function TablesPage() {
                     <button
                       className="text-faint transition hover:text-fg"
                       onClick={() => setShowInsert(false)}
-                      aria-label="Yopish"
+                      aria-label={t.common.close}
                     >
                       <X size={15} />
                     </button>
                   </div>
-                  <p className="mb-3 text-xs text-faint">{t.tables.defaultHint}</p>
+                  <div className="mb-3 space-y-1">
+                    <p className="text-xs text-faint">{t.tables.defaultHint}</p>
+                    {pkCols.length > 0 && (
+                      <p className="text-xs text-faint">{t.tables.pkHint}</p>
+                    )}
+                  </div>
                   <div className="space-y-3">
                     {editableCols.map((c) => (
                       <div key={c.name}>
@@ -333,7 +431,7 @@ export default function TablesPage() {
                           <span>{c.name}</span>
                           <span className="col-type">{c.type}</span>
                           {isRequired(c) ? (
-                            <span className="text-danger" title="Majburiy">
+                            <span className="text-danger" title={t.tables.required}>
                               *
                             </span>
                           ) : (
@@ -346,6 +444,7 @@ export default function TablesPage() {
                         </label>
                         <CellInput
                           column={c}
+                          requiredLabel={t.tables.requiredPlaceholder}
                           value={form[c.name] ?? ""}
                           onChange={(v) =>
                             setForm((f) => ({ ...f, [c.name]: v }))
@@ -382,13 +481,15 @@ function CellInput({
   column,
   value,
   onChange,
+  requiredLabel,
 }: {
   column: Column;
   value: string;
   onChange: (v: string) => void;
+  requiredLabel: string;
 }) {
   const required = !column.nullable && column.def === null;
-  const placeholder = required ? "majburiy" : column.def !== null ? "default" : "NULL";
+  const placeholder = required ? requiredLabel : column.def !== null ? "default" : "NULL";
 
   if (column.type === "bool") {
     return (
