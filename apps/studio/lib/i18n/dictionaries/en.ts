@@ -271,6 +271,15 @@ export const en: Dict = {
     bucketCreated: (id: string) => `Bucket "${id}" created`,
     bucketFail: "Failed to create bucket",
     download: "Download",
+    renameBucketTitle: "Rename bucket",
+    renameBucketLabel: "New name",
+    bucketRenamed: (id: string) => `Bucket renamed to "${id}"`,
+    bucketRenameFail: "Failed to rename bucket",
+    deleteBucketTitle: "Delete bucket",
+    deleteBucketMsg: (id: string) =>
+      `Bucket "${id}" and all its files will be permanently deleted.`,
+    bucketDeleted: "Bucket deleted",
+    bucketDeleteFail: "Failed to delete bucket",
   },
   reports: {
     title: "Reports",

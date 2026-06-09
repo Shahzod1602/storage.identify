@@ -51,8 +51,8 @@ export default function AuthPage() {
   async function addUser() {
     if (!keys) return;
     const trimmedEmail = email.trim();
-    // Email formatini tekshirish
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+    // Email formatini tekshirish (TLD kamida 2 harf — "user@gmail.c" o'tmaydi)
+    if (!/^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/.test(trimmedEmail)) {
       setError(t.authPage.emailInvalid);
       toast.error(t.authPage.emailInvalid);
       return;

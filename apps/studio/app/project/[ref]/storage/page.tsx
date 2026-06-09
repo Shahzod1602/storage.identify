@@ -10,6 +10,7 @@ import {
   RefreshCw,
   Download,
   Trash2,
+  Pencil,
 } from "lucide-react";
 import { useProject } from "@/components/project-context";
 import { metaQuery, GATEWAY } from "@/lib/api";
@@ -100,6 +101,61 @@ export default function StoragePage() {
     toast.success(t.storage.bucketCreated(res.value));
     await loadBuckets();
     setActive(res.value);
+  }
+
+  async function renameBucket(b: Bucket) {
+    if (!keys) return;
+    const res = await promptDialog({
+      title: t.storage.renameBucketTitle,
+      label: t.storage.renameBucketLabel,
+      defaultValue: b.id,
+      confirmLabel: t.common.save,
+    });
+    if (!res || !res.value || res.value === b.id) return;
+    const r = await fetch(
+      `${GATEWAY}/v1/${ref}/storage/v1/bucket/${encodeURIComponent(b.id)}`,
+      {
+        method: "PUT",
+        headers: { apikey: keys.service_key, "content-type": "application/json" },
+        body: JSON.stringify({ newId: res.value }),
+      },
+    );
+    if (!r.ok) {
+      const msg =
+        (await r.json().catch(() => ({}))).error ?? t.storage.bucketRenameFail;
+      toast.error(msg);
+      return;
+    }
+    toast.success(t.storage.bucketRenamed(res.value));
+    if (active === b.id) setActive(res.value);
+    await loadBuckets();
+  }
+
+  async function deleteBucket(b: Bucket) {
+    if (!keys) return;
+    const ok = await confirmDialog({
+      title: t.storage.deleteBucketTitle,
+      message: t.storage.deleteBucketMsg(b.id),
+      danger: true,
+      confirmLabel: t.common.delete,
+    });
+    if (!ok) return;
+    const r = await fetch(
+      `${GATEWAY}/v1/${ref}/storage/v1/bucket/${encodeURIComponent(b.id)}`,
+      { method: "DELETE", headers: { apikey: keys.service_key } },
+    );
+    if (!r.ok) {
+      const msg =
+        (await r.json().catch(() => ({}))).error ?? t.storage.bucketDeleteFail;
+      toast.error(msg);
+      return;
+    }
+    toast.success(t.storage.bucketDeleted);
+    if (active === b.id) {
+      setActive(null);
+      setObjects([]);
+    }
+    await loadBuckets();
   }
 
   async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -212,18 +268,43 @@ export default function StoragePage() {
             <p className="px-2 py-2 text-xs text-faint">{t.storage.noBuckets}</p>
           )}
           {buckets.map((b) => (
-            <button
+            <div
               key={b.id}
+              role="button"
+              tabIndex={0}
               onClick={() => setActive(b.id)}
-              className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition ${
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") setActive(b.id);
+              }}
+              className={`group flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition ${
                 active === b.id
                   ? "bg-brand/10 font-medium text-brand"
                   : "text-secondary hover:bg-hover hover:text-fg"
               }`}
             >
               {b.public ? <Globe size={13} /> : <Lock size={13} />}
-              <span className="truncate">{b.id}</span>
-            </button>
+              <span className="flex-1 truncate">{b.id}</span>
+              <button
+                className="hidden shrink-0 text-faint transition hover:text-fg group-hover:block"
+                title={t.storage.renameBucketTitle}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void renameBucket(b);
+                }}
+              >
+                <Pencil size={12} />
+              </button>
+              <button
+                className="hidden shrink-0 text-faint transition hover:text-danger group-hover:block"
+                title={t.storage.deleteBucketTitle}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void deleteBucket(b);
+                }}
+              >
+                <Trash2 size={12} />
+              </button>
+            </div>
           ))}
         </div>
       </div>

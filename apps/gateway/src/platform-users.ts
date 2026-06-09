@@ -51,8 +51,8 @@ export async function listPlatformUsers(): Promise<PlatformUser[]> {
   `;
 }
 
-// @ va keyin nuqtali domen shart bo'lgan oddiy format tekshiruvi.
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// @ va keyin nuqtali domen shart, TLD kamida 2 harf.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/;
 
 export async function createPlatformUser(
   email: string,

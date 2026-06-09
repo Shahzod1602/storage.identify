@@ -4,6 +4,8 @@ import type { Project } from "@storagedb/types";
 import {
   createBucket,
   listBuckets,
+  deleteBucket,
+  renameBucket,
   uploadObject,
   downloadObject,
   downloadPublic,
@@ -45,6 +47,23 @@ export function registerStorageRoutes(app: FastifyInstance): void {
     const { ref } = req.params as { ref: string };
     await resolveContext(req, ref);
     return reply.send(await listBuckets(await projectOr404(ref)));
+  });
+
+  // Bucket nomini o'zgartirish (service_role)
+  app.put("/v1/:ref/storage/v1/bucket/:id", async (req, reply) => {
+    const { ref, id } = req.params as { ref: string; id: string };
+    const ctx = await resolveContext(req, ref);
+    const { newId } = (req.body ?? {}) as { newId?: string };
+    if (!newId) throw new GatewayError(400, "'newId' kerak");
+    return reply.send(await renameBucket(ctx.project, ctx, id, newId));
+  });
+
+  // Bucket o'chirish — barcha fayllari bilan (service_role)
+  app.delete("/v1/:ref/storage/v1/bucket/:id", async (req, reply) => {
+    const { ref, id } = req.params as { ref: string; id: string };
+    const ctx = await resolveContext(req, ref);
+    await deleteBucket(ctx.project, ctx, id);
+    return reply.code(204).send();
   });
 
   // Signed URL yaratish (egasi/service)

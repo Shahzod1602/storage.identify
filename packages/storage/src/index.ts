@@ -2,7 +2,13 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { getConfig } from "@storagedb/config";
 import { getProjectPool } from "@storagedb/db";
 import type { Project, ProjectContext } from "@storagedb/types";
-import { putFile, getFile, removeFile } from "./backend.js";
+import {
+  putFile,
+  getFile,
+  removeFile,
+  removeBucketDir,
+  renameBucketDir,
+} from "./backend.js";
 
 export class StorageError extends Error {
   constructor(
@@ -83,6 +89,59 @@ export async function listBuckets(project: Project): Promise<Bucket[]> {
     project,
     (tx) => tx<Bucket[]>`select id, public from storage.buckets order by id`,
   );
+}
+
+/** Bucket'ni barcha obyektlari (DB qatorlari + diskdagi fayllar) bilan o'chiradi. */
+export async function deleteBucket(
+  project: Project,
+  ctx: ProjectContext,
+  id: string,
+): Promise<void> {
+  if (ctx.role !== "service_role") {
+    throw new StorageError(403, "Bucket o'chirish uchun service_role kerak");
+  }
+  const b = await loadBucket(project, id);
+  if (!b) throw new StorageError(404, `Bucket topilmadi: ${id}`);
+  await asService(project, async (tx) => {
+    // objects FK 'on delete cascade' — bucket bilan birga o'chadi
+    await tx`delete from storage.buckets where id = ${id}`;
+  });
+  await removeBucketDir(project.ref, id);
+}
+
+/** Bucket nomini o'zgartiradi (obyektlar va diskdagi katalog ham ko'chadi). */
+export async function renameBucket(
+  project: Project,
+  ctx: ProjectContext,
+  id: string,
+  newId: string,
+): Promise<Bucket> {
+  if (ctx.role !== "service_role") {
+    throw new StorageError(403, "Bucket nomini o'zgartirish uchun service_role kerak");
+  }
+  if (!/^[a-z0-9][a-z0-9._-]*$/i.test(newId)) {
+    throw new StorageError(400, "Yangi bucket id yaroqsiz");
+  }
+  const b = await loadBucket(project, id);
+  if (!b) throw new StorageError(404, `Bucket topilmadi: ${id}`);
+  if (newId === id) return b;
+
+  const renamed = await asService(project, async (tx) => {
+    const [exists] = await tx<Bucket[]>`
+      select id, public from storage.buckets where id = ${newId}
+    `;
+    if (exists) throw new StorageError(409, `Bucket allaqachon mavjud: ${newId}`);
+    // FK'da 'on update cascade' yo'q — yangi qator ochib, obyektlarni ko'chiramiz
+    const [nb] = await tx<Bucket[]>`
+      insert into storage.buckets (id, public) values (${newId}, ${b.public})
+      returning id, public
+    `;
+    await tx`update storage.objects set bucket_id = ${newId} where bucket_id = ${id}`;
+    await tx`delete from storage.buckets where id = ${id}`;
+    return nb!;
+  });
+  await renameBucketDir(project.ref, id, newId);
+  return renamed;
 }
 
 // ── Obyektlar ──────────────────────────────────────────────────────────

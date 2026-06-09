@@ -31,6 +31,16 @@ export class AuthError extends Error {
   }
 }
 
+// @ va nuqtali domen shart, TLD kamida 2 harf — client validatsiyasini aylanib
+// o'tib yuborilgan so'rovlar ham shu yerda to'xtaydi.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/;
+
+function assertValidEmail(email: string): void {
+  if (!email || !EMAIL_RE.test(email.trim())) {
+    throw new AuthError(400, "Email manzili yaroqsiz (masalan: user@example.com)");
+  }
+}
+
 export interface AuthUser {
   id: string;
   email: string;
@@ -121,6 +131,7 @@ export async function signup(
   if (!email || !password || password.length < 6) {
     throw new AuthError(400, "email va kamida 6 belgili password kerak");
   }
+  assertValidEmail(email);
   const autoconfirm = getConfig().AUTH_AUTOCONFIRM;
   const encrypted = await hashPassword(password);
   const token = randomBytes(32).toString("hex");
@@ -202,6 +213,7 @@ export async function adminCreateUser(
   if (!input.email || !input.password || input.password.length < 6) {
     throw new AuthError(400, "email va kamida 6 belgili password kerak");
   }
+  assertValidEmail(input.email);
   const encrypted = await hashPassword(input.password);
   return asService(project, async (tx) => {
     const [user] = await tx<UserRow[]>`

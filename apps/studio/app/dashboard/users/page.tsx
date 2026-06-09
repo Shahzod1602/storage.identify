@@ -64,8 +64,8 @@ export default function UsersPage() {
       .catch(() => router.replace("/dashboard"));
   }, [ready, router]);
 
-  // Email format tekshiruvi: @ va keyin nuqtali domen shart (okk@gmail / sdfsdf o'tmaydi).
-  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  // Email format tekshiruvi: @ va nuqtali domen shart, TLD kamida 2 harf (okk@gmail.c o'tmaydi).
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/;
 
   async function add() {
     const e = email.trim();
